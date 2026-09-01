@@ -1,0 +1,6 @@
+{
+  "name": "EMS Digital Twin Prototype",
+  "description": "Interactive digital twin prototype of an Emergency Medical Services (EMS) network comparing traditional nearest-available dispatch with predictive, equity-aware dispatch across 20 socioeconomic zones.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
