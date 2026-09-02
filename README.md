@@ -1,21 +1,71 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# EMS Digital Twin
 
-# Run and deploy your AI Studio app
+Gemelo digital para simular una red urbana de servicios medicos de emergencia, comparar politicas de despacho y analizar indicadores de equidad socioeconomica.
 
-This contains everything you need to run your app locally.
+## Estado del proyecto
 
-View your app in AI Studio: https://ai.studio/apps/a65838e6-a8ce-47c7-9c5a-29b777964b6f
+El proyecto ya tiene una primera fase de produccionizacion al 30%. El detalle esta en [docs/PRODUCTIONIZATION_TICKETS.md](docs/PRODUCTIONIZATION_TICKETS.md).
 
-## Run Locally
+Completado:
 
-**Prerequisites:**  Node.js
+- Backlog inicial y criterios de aceptacion.
+- Contrato de metricas unificado.
+- Frontend conectado a la API Node con fallback local.
 
+Pendiente principal:
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
-"# ems-digital-twin" 
+- Decidir si el backend canonico sera Node/Express o FastAPI.
+- Agregar persistencia y validacion fuerte de payloads.
+- Incorporar pruebas automatizadas y Dockerfile.
+
+## Arquitectura actual
+
+- `src/`: frontend React/Vite y motores TypeScript de simulacion, prediccion, despacho, estadistica y comparacion.
+- `server.ts`: servidor Express que expone la API y sirve Vite en desarrollo o `dist` en produccion.
+- `backend/app/main.py`: backend FastAPI experimental con endpoints incompletos.
+- `docs/`: tickets y notas de avance hacia implementacion.
+
+## Ejecutar localmente
+
+Requisitos:
+
+- Node.js 20+ recomendado.
+- Dependencias instaladas con `npm install`.
+
+Comandos:
+
+```bash
+npm install
+npm run dev
+```
+
+La app queda disponible en `http://localhost:3000`.
+
+## Scripts
+
+```bash
+npm run dev      # Express + Vite middleware
+npm run build    # Build frontend + bundle del servidor
+npm run start    # Ejecuta dist/server.cjs
+npm run lint     # TypeScript sin emitir archivos
+npm run clean    # Limpieza cross-platform de dist/server.js
+```
+
+## Variables
+
+Copiar `.env.example` a `.env.local` si se necesita configuracion local.
+
+- `PORT`: puerto del servidor Node. Por defecto `3000`.
+- `VITE_API_BASE_URL`: URL base de la API si el frontend se sirve separado. Vacio usa rutas relativas.
+
+## API principal
+
+- `GET /api/health`
+- `POST /api/simulations`
+- `POST /api/simulations/step`
+- `PATCH /api/simulations/config`
+- `GET /api/comparisons`
+- `GET /api/predictions`
+- `POST /api/dispatch/evaluate`
+- `POST /api/relocation/recommend`
+- `GET /api/data/export`

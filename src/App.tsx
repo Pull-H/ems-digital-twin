@@ -23,9 +23,13 @@ import {
   StatisticalTestResult,
   Zone,
 } from './types';
+import { simulationApi } from './services/apiClient';
 import { ZONES_DATA, EMS_BASES, HOSPITALS } from './services/cityData';
-import { EMSSimulationEngine, SimEventLog } from './services/simulationEngine';
+import { EMSSimulationEngine, SimEventLog, SimulationState } from './services/simulationEngine';
 import { ComparisonBenchmarkResult, runComparisonBenchmark } from './services/comparisonService';
+import { createEmptySimulationMetrics } from './services/statsEngine';
+
+type RuntimeMode = 'api' | 'local';
 
 export const App: React.FC = () => {
   // Navigation
@@ -46,6 +50,7 @@ export const App: React.FC = () => {
 
   // Simulation engine instance (ref to avoid re-renders)
   const engineRef = useRef<EMSSimulationEngine | null>(null);
+  const stepInFlightRef = useRef(false);
 
   // Live state
   const [simMinute, setSimMinute] = useState<number>(0);
@@ -55,29 +60,12 @@ export const App: React.FC = () => {
   const [hospitals, setHospitals] = useState<Hospital[]>(HOSPITALS);
   const [ambulances, setAmbulances] = useState<Ambulance[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [metrics, setMetrics] = useState<SimulationMetrics>({
-    tiempo_promedio_respuesta: 6.8,
-    mediana_respuesta: 6.2,
-    p90_respuesta: 11.5,
-    porcentaje_menor_8min: 82.5,
-    total_incidentes: 0,
-    incidentes_atendidos: 0,
-    incidentes_pendientes: 0,
-    por_quintil: {
-      1: { quintil: 1, tiempo_promedio_respuesta: 7.1, porcentaje_menor_8min: 80.0, total_incidentes: 0 },
-      2: { quintil: 2, tiempo_promedio_respuesta: 6.9, porcentaje_menor_8min: 81.5, total_incidentes: 0 },
-      3: { quintil: 3, tiempo_promedio_respuesta: 6.8, porcentaje_menor_8min: 82.0, total_incidentes: 0 },
-      4: { quintil: 4, tiempo_promedio_respuesta: 6.5, porcentaje_menor_8min: 84.0, total_incidentes: 0 },
-      5: { quintil: 5, tiempo_promedio_respuesta: 6.2, porcentaje_menor_8min: 86.0, total_incidentes: 0 },
-    },
-    razon_disparidad: 1.15,
-    diferencia_max_min_quintiles: 0.9,
-    distancia_total_km: 0,
-    utilizacion_ambulancias: 0.35,
-  });
+  const [metrics, setMetrics] = useState<SimulationMetrics>(() => createEmptySimulationMetrics());
   const [predictions, setPredictions] = useState<DemandPrediction[]>([]);
   const [relocations, setRelocations] = useState<RelocationRecommendation[]>([]);
   const [eventLogs, setEventLogs] = useState<SimEventLog[]>([]);
+  const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>('local');
+  const [apiWarning, setApiWarning] = useState<string | null>(null);
 
   // Selection state
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
@@ -87,50 +75,94 @@ export const App: React.FC = () => {
   const [benchmarkResult, setBenchmarkResult] = useState<ComparisonBenchmarkResult | null>(null);
   const [isBenchmarkLoading, setIsBenchmarkLoading] = useState<boolean>(false);
 
+  const applySimulationState = useCallback((state: SimulationState) => {
+    setSimMinute(state.sim_minute);
+    setAmbulances([...state.ambulances]);
+    setIncidents([...state.incidents]);
+    setHospitals([...state.hospitals]);
+    setMetrics({ ...state.metrics });
+    setPredictions([...state.predictions]);
+    setRelocations([...state.relocation_recommendations]);
+    setEventLogs([...state.event_logs]);
+  }, []);
+
   // Sync state from engine
   const syncStateFromEngine = useCallback(() => {
     if (!engineRef.current) return;
-    const engine = engineRef.current;
-    setSimMinute(engine.state.sim_minute);
-    setAmbulances([...engine.state.ambulances]);
-    setIncidents([...engine.state.incidents]);
-    setHospitals([...engine.state.hospitals]);
-    setMetrics({ ...engine.state.metrics });
-    setPredictions([...engine.state.predictions]);
-    setRelocations([...engine.state.relocation_recommendations]);
-    setEventLogs([...engine.state.event_logs]);
-  }, []);
+    applySimulationState(engineRef.current.state);
+  }, [applySimulationState]);
 
-  // Initialize engine
-  const initEngine = useCallback(
-    (customScenario = scenario, customPolicy = policy, customNumAmbs = numAmbulances, customSeed = seed) => {
+  const initializeLocalEngine = useCallback(
+    (
+      customScenario: SimulationScenario,
+      customPolicy: DispatchPolicy,
+      customNumAmbs: number,
+      customSeed: number,
+      customWeights: DispatchWeights,
+      warmupMinutes = 45
+    ) => {
       const newEngine = new EMSSimulationEngine(
         customScenario,
         customPolicy,
         customNumAmbs,
         customSeed,
         720,
-        weights
+        customWeights
       );
 
-      // Warm up with 45 minutes of baseline operations
-      newEngine.step(45);
-
+      newEngine.step(warmupMinutes);
       engineRef.current = newEngine;
-      syncStateFromEngine();
+      setRuntimeMode('local');
+      applySimulationState(newEngine.state);
     },
-    [scenario, policy, numAmbulances, seed, weights, syncStateFromEngine]
+    [applySimulationState]
+  );
+
+  // Initialize engine
+  const initEngine = useCallback(
+    async (
+      customScenario = scenario,
+      customPolicy = policy,
+      customNumAmbs = numAmbulances,
+      customSeed = seed,
+      customWeights = weights
+    ) => {
+      setIsRunning(false);
+
+      try {
+        await simulationApi.createSimulation({
+          scenario: customScenario,
+          policy: customPolicy,
+          num_ambulances: customNumAmbs,
+          seed: customSeed,
+          duration_min: 720,
+          weights: customWeights,
+        });
+        const warmedState = await simulationApi.stepSimulation(45);
+        engineRef.current = null;
+        setRuntimeMode('api');
+        setApiWarning(null);
+        applySimulationState(warmedState);
+      } catch (err) {
+        initializeLocalEngine(customScenario, customPolicy, customNumAmbs, customSeed, customWeights);
+        setApiWarning('API no disponible; usando motor local en el navegador.');
+        console.warn('API simulation unavailable, falling back to local engine:', err);
+      }
+    },
+    [applySimulationState, initializeLocalEngine, scenario, policy, numAmbulances, seed, weights]
   );
 
   // Run benchmark
   const handleRunBenchmark = useCallback(async () => {
     setIsBenchmarkLoading(true);
     try {
-      // Run paired benchmark (12 hours = 720 min)
-      const result = runComparisonBenchmark(scenario, numAmbulances, seed, 720, weights);
+      const result = await simulationApi.runComparisonBenchmark(scenario, numAmbulances, seed, 720);
       setBenchmarkResult(result);
     } catch (err) {
-      console.error('Error running benchmark:', err);
+      const result = runComparisonBenchmark(scenario, numAmbulances, seed, 720, weights);
+      setBenchmarkResult(result);
+      setApiWarning('Benchmark ejecutado localmente porque la API no respondio.');
+      console.warn('API benchmark unavailable, using local benchmark:', err);
     } finally {
       setIsBenchmarkLoading(false);
     }
@@ -138,18 +170,39 @@ export const App: React.FC = () => {
 
   // Initial mount
   useEffect(() => {
-    initEngine();
-    handleRunBenchmark();
+    void initEngine();
+    void handleRunBenchmark();
   }, []);
 
   // Step simulation function
   const handleStep = useCallback(
-    (deltaMin: number) => {
-      if (!engineRef.current) return;
-      engineRef.current.step(deltaMin);
-      syncStateFromEngine();
+    async (deltaMin: number) => {
+      if (stepInFlightRef.current) return;
+      stepInFlightRef.current = true;
+
+      try {
+        if (runtimeMode === 'api') {
+          const updatedState = await simulationApi.stepSimulation(deltaMin);
+          applySimulationState(updatedState);
+          return;
+        }
+
+        if (!engineRef.current) {
+          initializeLocalEngine(scenario, policy, numAmbulances, seed, weights, simMinute);
+        }
+        engineRef.current?.step(deltaMin);
+        syncStateFromEngine();
+      } catch (err) {
+        setApiWarning('Se perdio conexion con la API; la simulacion continua en modo local.');
+        initializeLocalEngine(scenario, policy, numAmbulances, seed, weights, simMinute);
+        engineRef.current?.step(deltaMin);
+        syncStateFromEngine();
+        console.warn('API step failed, switched to local engine:', err);
+      } finally {
+        stepInFlightRef.current = false;
+      }
     },
-    [syncStateFromEngine]
+    [applySimulationState, initializeLocalEngine, numAmbulances, policy, runtimeMode, scenario, seed, simMinute, syncStateFromEngine, weights]
   );
 
   // Play/Pause ticker
@@ -158,7 +211,7 @@ export const App: React.FC = () => {
 
     const intervalMs = Math.max(100, Math.floor(1000 / speedMultiplier));
     const timer = setInterval(() => {
-      handleStep(1);
+      void handleStep(1);
     }, intervalMs);
 
     return () => clearInterval(timer);
@@ -167,7 +220,7 @@ export const App: React.FC = () => {
   // Handler for scenario change
   const handleChangeScenario = (newScenario: SimulationScenario) => {
     setScenario(newScenario);
-    initEngine(newScenario, policy, numAmbulances, seed);
+    void initEngine(newScenario, policy, numAmbulances, seed, weights);
   };
 
   // Handler for policy change
@@ -177,6 +230,12 @@ export const App: React.FC = () => {
       engineRef.current.state.policy = newPolicy;
       syncStateFromEngine();
     }
+    if (runtimeMode === 'api') {
+      void simulationApi.updateConfig({ policy: newPolicy }).then(applySimulationState).catch((err) => {
+        setApiWarning('No se pudo sincronizar la politica con la API.');
+        console.warn('API policy update failed:', err);
+      });
+    }
   };
 
   // Handler for weights change
@@ -185,17 +244,21 @@ export const App: React.FC = () => {
     if (engineRef.current) {
       engineRef.current.state.weights = newWeights;
     }
+    if (runtimeMode === 'api') {
+      void simulationApi.updateConfig({ weights: newWeights }).then(applySimulationState).catch((err) => {
+        setApiWarning('No se pudieron sincronizar los pesos con la API.');
+        console.warn('API weights update failed:', err);
+      });
+    }
   };
 
   // Reset simulation
   const handleReset = () => {
-    setIsRunning(false);
-    initEngine();
+    void initEngine();
   };
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans flex flex-col" id="ems-app-root">
-      {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -221,6 +284,17 @@ export const App: React.FC = () => {
           incidents={incidents}
         />
 
+        {apiWarning && (
+          <div className="mb-4 flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <span>
+              Modo {runtimeMode === 'api' ? 'API' : 'local'}: {apiWarning}
+            </span>
+            <button className="font-semibold text-amber-800 hover:text-amber-950" onClick={() => setApiWarning(null)}>
+              Cerrar
+            </button>
+          </div>
+        )}
+
         {/* Tab Content Routing */}
         {activeTab === 'map' && (
           <div className="space-y-4">
@@ -241,7 +315,7 @@ export const App: React.FC = () => {
             {/* Subordinate live controllers under the map for instant manipulation */}
             <SimulationControls
               isRunning={isRunning}
-              onTogglePlay={() => setIsRunning(!isRunning)}
+              onTogglePlay={() => setIsRunning((current) => !current)}
               onStep={handleStep}
               onReset={handleReset}
               speedMultiplier={speedMultiplier}
@@ -253,12 +327,12 @@ export const App: React.FC = () => {
               numAmbulances={numAmbulances}
               onChangeNumAmbulances={(n) => {
                 setNumAmbulances(n);
-                initEngine(scenario, policy, n, seed);
+                void initEngine(scenario, policy, n, seed, weights);
               }}
               seed={seed}
               onChangeSeed={(s) => {
                 setSeed(s);
-                initEngine(scenario, policy, numAmbulances, s);
+                void initEngine(scenario, policy, numAmbulances, s, weights);
               }}
               weights={weights}
               onChangeWeights={handleChangeWeights}
@@ -274,7 +348,7 @@ export const App: React.FC = () => {
         {activeTab === 'simulation' && (
           <SimulationControls
             isRunning={isRunning}
-            onTogglePlay={() => setIsRunning(!isRunning)}
+            onTogglePlay={() => setIsRunning((current) => !current)}
             onStep={handleStep}
             onReset={handleReset}
             speedMultiplier={speedMultiplier}
@@ -286,12 +360,12 @@ export const App: React.FC = () => {
             numAmbulances={numAmbulances}
             onChangeNumAmbulances={(n) => {
               setNumAmbulances(n);
-              initEngine(scenario, policy, n, seed);
+              void initEngine(scenario, policy, n, seed, weights);
             }}
             seed={seed}
             onChangeSeed={(s) => {
               setSeed(s);
-              initEngine(scenario, policy, numAmbulances, s);
+              void initEngine(scenario, policy, numAmbulances, s, weights);
             }}
             weights={weights}
             onChangeWeights={handleChangeWeights}
@@ -309,7 +383,7 @@ export const App: React.FC = () => {
             zones={zones}
             simMinute={simMinute}
             onRetrainModel={() => {
-              handleStep(1);
+              void handleStep(1);
             }}
           />
         )}
@@ -351,4 +425,3 @@ export const App: React.FC = () => {
 };
 
 export default App;
-

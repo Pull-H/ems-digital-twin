@@ -88,7 +88,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({
   const handleExportMetricsCSV = () => {
     const headers = ['metrica', 'valor', 'unidad'];
     const rows = [
-      ['total_incidentes', metrics.total_incidentes, 'llamadas'],
+      ['incidentes_totales', metrics.incidentes_totales, 'llamadas'],
       ['incidentes_atendidos', metrics.incidentes_atendidos, 'llamadas'],
       ['incidentes_pendientes', metrics.incidentes_pendientes, 'llamadas'],
       ['tiempo_promedio_respuesta', metrics.tiempo_promedio_respuesta.toFixed(2), 'minutos'],

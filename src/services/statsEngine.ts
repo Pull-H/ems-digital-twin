@@ -1,6 +1,32 @@
 import { Incident, QuintileMetric, SimulationMetrics, SocioeconomicQuintile, StatisticalTestResult, Zone } from '../types';
 import { INITIAL_ZONES } from './cityData';
 
+export function createEmptySimulationMetrics(): SimulationMetrics {
+  const por_quintil: Record<SocioeconomicQuintile, QuintileMetric> = {
+    1: { quintil: 1, nombre_quintil: 'Q1 (Muy Alta Vuln.)', total_incidentes: 0, tiempo_promedio_respuesta: 0, mediana_respuesta: 0, p90_respuesta: 0, tiempo_maximo: 0, porcentaje_menor_8min: 0, vulnerabilidad_promedio: 0.9 },
+    2: { quintil: 2, nombre_quintil: 'Q2 (Alta Vuln.)', total_incidentes: 0, tiempo_promedio_respuesta: 0, mediana_respuesta: 0, p90_respuesta: 0, tiempo_maximo: 0, porcentaje_menor_8min: 0, vulnerabilidad_promedio: 0.7 },
+    3: { quintil: 3, nombre_quintil: 'Q3 (Media)', total_incidentes: 0, tiempo_promedio_respuesta: 0, mediana_respuesta: 0, p90_respuesta: 0, tiempo_maximo: 0, porcentaje_menor_8min: 0, vulnerabilidad_promedio: 0.5 },
+    4: { quintil: 4, nombre_quintil: 'Q4 (Media-Alta)', total_incidentes: 0, tiempo_promedio_respuesta: 0, mediana_respuesta: 0, p90_respuesta: 0, tiempo_maximo: 0, porcentaje_menor_8min: 0, vulnerabilidad_promedio: 0.3 },
+    5: { quintil: 5, nombre_quintil: 'Q5 (Baja Vuln. / Alto Ingreso)', total_incidentes: 0, tiempo_promedio_respuesta: 0, mediana_respuesta: 0, p90_respuesta: 0, tiempo_maximo: 0, porcentaje_menor_8min: 0, vulnerabilidad_promedio: 0.15 },
+  };
+
+  return {
+    tiempo_promedio_respuesta: 0,
+    mediana_respuesta: 0,
+    p90_respuesta: 0,
+    tiempo_maximo_respuesta: 0,
+    porcentaje_menor_8min: 0,
+    distancia_total_km: 0,
+    utilizacion_ambulancias: 0,
+    incidentes_totales: 0,
+    incidentes_atendidos: 0,
+    incidentes_pendientes: 0,
+    por_quintil,
+    diferencia_max_min_quintiles: 0,
+    razon_disparidad: 1,
+  };
+}
+
 // Basic normal distribution CDF approximation (Abramowitz & Stegun formula)
 function normalCDF(x: number): number {
   const t = 1 / (1 + 0.2316419 * Math.abs(x));
@@ -58,13 +84,7 @@ export function computeSimulationMetrics(
   zones.forEach((z) => zoneMap.set(z.id, z));
 
   // By Quintile (1 to 5)
-  const quintileMetrics: Record<SocioeconomicQuintile, QuintileMetric> = {
-    1: { quintil: 1, nombre_quintil: 'Q1 (Muy Alta Vuln.)', total_incidentes: 0, tiempo_promedio_respuesta: 0, mediana_respuesta: 0, p90_respuesta: 0, tiempo_maximo: 0, porcentaje_menor_8min: 0, vulnerabilidad_promedio: 0.9 },
-    2: { quintil: 2, nombre_quintil: 'Q2 (Alta Vuln.)', total_incidentes: 0, tiempo_promedio_respuesta: 0, mediana_respuesta: 0, p90_respuesta: 0, tiempo_maximo: 0, porcentaje_menor_8min: 0, vulnerabilidad_promedio: 0.7 },
-    3: { quintil: 3, nombre_quintil: 'Q3 (Media)', total_incidentes: 0, tiempo_promedio_respuesta: 0, mediana_respuesta: 0, p90_respuesta: 0, tiempo_maximo: 0, porcentaje_menor_8min: 0, vulnerabilidad_promedio: 0.5 },
-    4: { quintil: 4, nombre_quintil: 'Q4 (Media-Alta)', total_incidentes: 0, tiempo_promedio_respuesta: 0, mediana_respuesta: 0, p90_respuesta: 0, tiempo_maximo: 0, porcentaje_menor_8min: 0, vulnerabilidad_promedio: 0.3 },
-    5: { quintil: 5, nombre_quintil: 'Q5 (Baja Vuln. / Alto Ingreso)', total_incidentes: 0, tiempo_promedio_respuesta: 0, mediana_respuesta: 0, p90_respuesta: 0, tiempo_maximo: 0, porcentaje_menor_8min: 0, vulnerabilidad_promedio: 0.15 },
-  };
+  const quintileMetrics = createEmptySimulationMetrics().por_quintil;
 
   const quintileTimes: Record<SocioeconomicQuintile, number[]> = { 1: [], 2: [], 3: [], 4: [], 5: [] };
 

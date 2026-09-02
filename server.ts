@@ -9,20 +9,28 @@ import {
   selectAmbulancePredictive,
   selectAmbulanceTraditional,
 } from './src/services/dispatchEngine';
-import { EMSSimulationEngine, generateSyntheticIncidents } from './src/services/simulationEngine';
+import { EMSSimulationEngine, generateSyntheticIncidents, SimulationState } from './src/services/simulationEngine';
 import { runComparisonBenchmark } from './src/services/comparisonService';
 import { computeSimulationMetrics } from './src/services/statsEngine';
 import { DispatchPolicy, Incident, SimulationScenario } from './src/types';
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT || 3000);
 
   app.use(express.json({ limit: '10mb' }));
 
   // In-memory persistent simulation store for active sessions
   let activeEngine = new EMSSimulationEngine('dia_normal', 'predictivo', 12, 12345, 720);
-  const simulationRunsStore = new Map<string, any>();
+  const simulationRunsStore = new Map<string, {
+    id: string;
+    scenario: SimulationScenario;
+    policy: DispatchPolicy;
+    seed: number;
+    duration_min: number;
+    num_ambulances: number;
+    state: SimulationState;
+  }>();
 
   // --- API Endpoints ---
 
@@ -119,6 +127,28 @@ async function startServer() {
     const { delta_minutes = 5 } = req.body || {};
     const updatedState = activeEngine.step(delta_minutes);
     res.json(updatedState);
+  });
+
+  // 8b. PATCH /api/simulations/config (Update live policy/weights without resetting)
+  app.patch('/api/simulations/config', (req, res) => {
+    const { policy: nextPolicy, weights: nextWeights } = req.body || {};
+
+    if (nextPolicy && nextPolicy !== 'tradicional' && nextPolicy !== 'predictivo') {
+      return res.status(400).json({ error: 'Politica de despacho no soportada.' });
+    }
+
+    if (nextPolicy) {
+      activeEngine.state.policy = nextPolicy as DispatchPolicy;
+    }
+
+    if (nextWeights) {
+      activeEngine.state.weights = {
+        ...activeEngine.state.weights,
+        ...nextWeights,
+      };
+    }
+
+    res.json(activeEngine.state);
   });
 
   // 9. POST /api/simulations/:id/run (Run complete simulation to completion)
