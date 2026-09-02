@@ -1,7 +1,6 @@
 import {
   Ambulance,
   AmbulanceStatus,
-  DemandPrediction,
   DispatchPolicy,
   DispatchWeights,
   Hospital,
@@ -9,8 +8,9 @@ import {
   IncidentPriority,
   IncidentType,
   RelocationRecommendation,
-  SimulationMetrics,
   SimulationScenario,
+  SimEventLog,
+  SimulationState,
   Zone,
 } from '../types';
 import {
@@ -164,6 +164,7 @@ export function generateSyntheticIncidents(
           latitud: Number(lat.toFixed(5)),
           longitud: Number(lng.toFixed(5)),
           zona_id: zone.id,
+          quintil_socioeconomico: zone.quintil_socioeconomico,
           prioridad,
           tipo,
           estado: 'pendiente',
@@ -171,7 +172,7 @@ export function generateSyntheticIncidents(
           hospital_id: null,
           tiempo_llamada: exactMinute,
           tiempo_despacho: null,
-          tiempo_llegada: null,
+          tiempo_llegada_escena: null,
           tiempo_respuesta_min: null,
           duracion_atencion_escena_min: Number(careTime.toFixed(1)),
           requiere_traslado,
@@ -185,46 +186,6 @@ export function generateSyntheticIncidents(
   // Sort strictly by simulation appearance minute
   incidents.sort((a, b) => a.sim_time_min - b.sim_time_min);
   return incidents;
-}
-
-export interface SimEventLog {
-  id: string;
-  sim_time_min: number;
-  tipo_evento:
-    | 'incidente_creado'
-    | 'ambulancia_despachada'
-    | 'llegada_escena'
-    | 'inicio_traslado'
-    | 'llegada_hospital'
-    | 'ambulancia_liberada'
-    | 'reubicacion_iniciada'
-    | 'reubicacion_completada';
-  descripcion: string;
-  ambulancia_codigo?: string;
-  incidente_id?: string;
-  zona_nombre?: string;
-}
-
-export interface SimulationState {
-  sim_minute: number;
-  is_running: boolean;
-  scenario: SimulationScenario;
-  policy: DispatchPolicy;
-  seed: number;
-  speed_multiplier: number;
-  total_duration_min: number;
-  traffic_factor: number;
-  weather_factor: number;
-  zones: Zone[];
-  bases: typeof INITIAL_BASES;
-  hospitals: Hospital[];
-  ambulances: Ambulance[];
-  incidents: Incident[];
-  predictions: DemandPrediction[];
-  relocation_recommendations: RelocationRecommendation[];
-  event_logs: SimEventLog[];
-  metrics: SimulationMetrics;
-  weights: DispatchWeights;
 }
 
 // Full Discrete Event Simulator Engine
@@ -384,8 +345,8 @@ export class EMSSimulationEngine {
           inc.estado = 'despachado';
           inc.ambulancia_id = amb.id;
           inc.tiempo_despacho = currentMin;
-          inc.tiempo_llegada = currentMin + Number(travelTime.toFixed(1));
-          inc.tiempo_respuesta_min = Number((inc.tiempo_llegada - inc.tiempo_llamada).toFixed(2));
+          inc.tiempo_llegada_escena = currentMin + Number(travelTime.toFixed(1));
+          inc.tiempo_respuesta_min = Number((inc.tiempo_llegada_escena - inc.tiempo_llamada).toFixed(2));
           inc.explicacion_despacho = dispatchResult.rationale;
           inc.politica_usada = this.state.policy;
 
@@ -438,7 +399,7 @@ export class EMSSimulationEngine {
 
         // B) In transit to scene
         if (amb.estado === 'en ruta') {
-          if (inc.tiempo_llegada !== null && currentMin >= inc.tiempo_llegada) {
+          if (inc.tiempo_llegada_escena !== null && currentMin >= inc.tiempo_llegada_escena) {
             amb.estado = 'en escena';
             amb.latitud = inc.latitud;
             amb.longitud = inc.longitud;
@@ -454,9 +415,9 @@ export class EMSSimulationEngine {
               incidente_id: inc.id,
               zona_nombre: this.getZoneName(inc.zona_id),
             });
-          } else if (inc.tiempo_llegada !== null) {
+          } else if (inc.tiempo_llegada_escena !== null) {
             // Smooth vehicle interpolation on map
-            const totalTravelTime = (inc.tiempo_llegada - (inc.tiempo_despacho || currentMin)) || 1;
+            const totalTravelTime = (inc.tiempo_llegada_escena - (inc.tiempo_despacho || currentMin)) || 1;
             const elapsed = currentMin - (inc.tiempo_despacho || currentMin);
             const frac = Math.min(0.95, Math.max(0.05, elapsed / totalTravelTime));
             amb.latitud += (inc.latitud - amb.latitud) * frac;
@@ -465,7 +426,7 @@ export class EMSSimulationEngine {
         }
         // C) On scene care
         else if (amb.estado === 'en escena') {
-          const sceneEndMin = (inc.tiempo_llegada || currentMin) + inc.duracion_atencion_escena_min;
+          const sceneEndMin = (inc.tiempo_llegada_escena || currentMin) + inc.duracion_atencion_escena_min;
           if (currentMin >= sceneEndMin) {
             if (inc.requiere_traslado) {
               const hospChoice = selectDestinationHospital(inc, this.state.hospitals, 'menor_costo_combinado', this.state.traffic_factor);

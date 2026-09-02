@@ -9,10 +9,10 @@ import {
   selectAmbulancePredictive,
   selectAmbulanceTraditional,
 } from './src/services/dispatchEngine';
-import { EMSSimulationEngine, generateSyntheticIncidents, SimulationState } from './src/services/simulationEngine';
+import { EMSSimulationEngine, generateSyntheticIncidents } from './src/services/simulationEngine';
 import { runComparisonBenchmark } from './src/services/comparisonService';
 import { computeSimulationMetrics } from './src/services/statsEngine';
-import { DispatchPolicy, Incident, SimulationScenario } from './src/types';
+import { DispatchPolicy, Incident, SimulationScenario, SimulationState } from './src/types';
 
 async function startServer() {
   const app = express();
@@ -277,6 +277,7 @@ async function startServer() {
       const priority = (parts[headers.indexOf('priority')] as any) || 'media';
       const incType = (parts[headers.indexOf('incident_type')] as any) || 'otro';
       const zoneId = parseInt(parts[headers.indexOf('zone_id')]) || 1;
+      const zone = INITIAL_ZONES.find((z) => z.id === zoneId) || INITIAL_ZONES[0];
 
       parsedIncidents.push({
         id: incId,
@@ -285,6 +286,7 @@ async function startServer() {
         latitud: lat,
         longitud: lon,
         zona_id: zoneId,
+        quintil_socioeconomico: zone.quintil_socioeconomico,
         prioridad: priority,
         tipo: incType,
         estado: 'pendiente',
@@ -292,7 +294,7 @@ async function startServer() {
         hospital_id: null,
         tiempo_llamada: idx * 12,
         tiempo_despacho: null,
-        tiempo_llegada: null,
+        tiempo_llegada_escena: null,
         tiempo_respuesta_min: null,
         duracion_atencion_escena_min: 12.0,
         requiere_traslado: true,

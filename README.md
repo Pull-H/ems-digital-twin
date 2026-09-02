@@ -26,6 +26,7 @@ Pendiente principal:
 - `docs/`: tickets y notas de avance hacia implementacion.
 
 La decision arquitectonica esta documentada en [docs/ADR-001_BACKEND_CANONICO.md](docs/ADR-001_BACKEND_CANONICO.md).
+El contrato de datos de simulacion esta documentado en [docs/SIMULATION_CONTRACT.md](docs/SIMULATION_CONTRACT.md).
 
 ## Ejecutar localmente
 

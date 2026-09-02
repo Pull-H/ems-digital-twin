@@ -20,12 +20,14 @@ import {
   RelocationRecommendation,
   SimulationMetrics,
   SimulationScenario,
+  SimEventLog,
+  SimulationState,
   StatisticalTestResult,
   Zone,
 } from './types';
 import { simulationApi } from './services/apiClient';
 import { ZONES_DATA, EMS_BASES, HOSPITALS } from './services/cityData';
-import { EMSSimulationEngine, SimEventLog, SimulationState } from './services/simulationEngine';
+import { EMSSimulationEngine } from './services/simulationEngine';
 import { ComparisonBenchmarkResult, runComparisonBenchmark } from './services/comparisonService';
 import { createEmptySimulationMetrics } from './services/statsEngine';
 

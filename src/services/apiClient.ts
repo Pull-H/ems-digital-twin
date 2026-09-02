@@ -1,6 +1,12 @@
-import { DispatchPolicy, DispatchWeights, SimulationScenario } from '../types';
+import {
+  CreateSimulationRequest,
+  CreateSimulationResponse,
+  DispatchPolicy,
+  DispatchWeights,
+  SimulationScenario,
+  SimulationState,
+} from '../types';
 import { ComparisonBenchmarkResult } from './comparisonService';
-import { SimulationState } from './simulationEngine';
 
 const apiBaseUrl =
   ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_API_BASE_URL || '').replace(/\/$/, '');
@@ -20,21 +26,6 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return response.json() as Promise<T>;
-}
-
-export interface CreateSimulationRequest {
-  scenario: SimulationScenario;
-  policy: DispatchPolicy;
-  num_ambulances: number;
-  seed: number;
-  duration_min: number;
-  weights: DispatchWeights;
-}
-
-export interface CreateSimulationResponse {
-  run_id: string;
-  message: string;
-  state: SimulationState;
 }
 
 export const simulationApi = {

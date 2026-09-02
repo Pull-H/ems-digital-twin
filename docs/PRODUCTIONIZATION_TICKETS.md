@@ -7,7 +7,7 @@ Objetivo de esta fase: convertir la demo academica en una base implementable, me
 | ID | Ticket | Estado | Criterio de aceptacion |
 | --- | --- | --- | --- |
 | EMS-001 | Definir backend canonico del proyecto | Hecho | ADR documenta `server.ts` como backend canonico de Fase 1 y FastAPI queda marcado como experimental. |
-| EMS-002 | Unificar contrato de metricas de simulacion | Hecho | `SimulationMetrics` se inicializa desde una fabrica compartida y las vistas usan `incidentes_totales`. |
+| EMS-002 | Estabilizar contrato de simulacion | Hecho | `SimulationState`, `SimEventLog`, `Incident` y `SimulationMetrics` viven en `src/types`; se eliminaron campos duplicados de incidente y el contrato esta documentado. |
 | EMS-003 | Conectar frontend con API Node con fallback local | Hecho | La app intenta usar `/api/simulations`, `/api/simulations/step` y `/api/comparisons`; si falla, sigue operando localmente. |
 | EMS-004 | Retirar duplicacion FastAPI/Express | Pendiente | FastAPI se elimina, se migra a paridad real, o se separa con responsabilidades no duplicadas. |
 | EMS-005 | Persistencia de corridas, incidentes importados y parametros | Pendiente | Las simulaciones sobreviven reinicios y se pueden consultar por `run_id`. |

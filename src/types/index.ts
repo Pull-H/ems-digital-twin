@@ -87,23 +87,20 @@ export interface Incident {
   latitud: number;
   longitud: number;
   zona_id: number;
-  quintil_socioeconomico?: SocioeconomicQuintile;
+  quintil_socioeconomico: SocioeconomicQuintile;
   prioridad: IncidentPriority;
   tipo: IncidentType;
   estado: IncidentStatus;
   ambulancia_id: number | null;
   hospital_id: number | null;
-  hospital_destino_id?: number | null;
   tiempo_llamada: number; // sim_time when generated
   tiempo_despacho: number | null;
-  tiempo_llegada: number | null;
-  tiempo_llegada_escena?: number | null;
-  tiempo_respuesta_min: number | null; // tiempo_llegada - tiempo_llamada
-  duracion_atencion_escena_min?: number;
-  tiempo_servicio_escena?: number;
+  tiempo_llegada_escena: number | null;
+  tiempo_respuesta_min: number | null; // tiempo_llegada_escena - tiempo_llamada
+  duracion_atencion_escena_min: number;
   requiere_traslado: boolean;
-  tiempo_llegada_hospital?: number | null;
-  tiempo_liberacion?: number | null;
+  tiempo_llegada_hospital: number | null;
+  tiempo_liberacion: number | null;
   explicacion_despacho?: string;
   politica_usada?: DispatchPolicy;
 }
@@ -188,6 +185,61 @@ export interface SimulationRun {
   estado: 'preparada' | 'en_ejecucion' | 'pausada' | 'completada';
   metricas: SimulationMetrics | null;
   incidentes_muestra?: Incident[];
+}
+
+export interface SimEventLog {
+  id: string;
+  sim_time_min: number;
+  tipo_evento:
+    | 'incidente_creado'
+    | 'ambulancia_despachada'
+    | 'llegada_escena'
+    | 'inicio_traslado'
+    | 'llegada_hospital'
+    | 'ambulancia_liberada'
+    | 'reubicacion_iniciada'
+    | 'reubicacion_completada';
+  descripcion: string;
+  ambulancia_codigo?: string;
+  incidente_id?: string;
+  zona_nombre?: string;
+}
+
+export interface SimulationState {
+  sim_minute: number;
+  is_running: boolean;
+  scenario: SimulationScenario;
+  policy: DispatchPolicy;
+  seed: number;
+  speed_multiplier: number;
+  total_duration_min: number;
+  traffic_factor: number;
+  weather_factor: number;
+  zones: Zone[];
+  bases: EMSBase[];
+  hospitals: Hospital[];
+  ambulances: Ambulance[];
+  incidents: Incident[];
+  predictions: DemandPrediction[];
+  relocation_recommendations: RelocationRecommendation[];
+  event_logs: SimEventLog[];
+  metrics: SimulationMetrics;
+  weights: DispatchWeights;
+}
+
+export interface CreateSimulationRequest {
+  scenario: SimulationScenario;
+  policy: DispatchPolicy;
+  num_ambulances: number;
+  seed: number;
+  duration_min: number;
+  weights: DispatchWeights;
+}
+
+export interface CreateSimulationResponse {
+  run_id: string;
+  message: string;
+  state: SimulationState;
 }
 
 export interface DispatchWeights {

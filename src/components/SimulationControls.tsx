@@ -4,9 +4,9 @@ import {
   DispatchPolicy,
   DispatchWeights,
   Incident,
+  SimEventLog,
   SimulationScenario,
 } from '../types';
-import { SimEventLog } from '../services/simulationEngine';
 import {
   FastForward,
   Pause,

@@ -49,8 +49,8 @@ export const DataManagement: React.FC<DataManagementProps> = ({
       'tiempo_despacho_min',
       'tiempo_llegada_escena_min',
       'tiempo_respuesta_min',
-      'tiempo_servicio_escena_min',
-      'hospital_destino_id',
+      'duracion_atencion_escena_min',
+      'hospital_id',
       'cumple_meta_8min',
     ];
 
@@ -68,8 +68,8 @@ export const DataManagement: React.FC<DataManagementProps> = ({
       inc.tiempo_despacho ?? '',
       inc.tiempo_llegada_escena ?? '',
       inc.tiempo_respuesta_min ?? '',
-      inc.tiempo_servicio_escena,
-      inc.hospital_destino_id || '',
+      inc.duracion_atencion_escena_min,
+      inc.hospital_id || '',
       inc.tiempo_respuesta_min ? (inc.tiempo_respuesta_min <= 8 ? 1 : 0) : '',
     ]);
 
@@ -148,9 +148,11 @@ export const DataManagement: React.FC<DataManagementProps> = ({
               ambulancia_id: parseInt(values[9]) || null,
               hospital_id: parseInt(values[14]) || null,
               tiempo_despacho: parseFloat(values[10]) || null,
-              tiempo_llegada: parseFloat(values[11]) || null,
-              tiempo_servicio_escena: 15,
+              tiempo_llegada_escena: parseFloat(values[11]) || null,
+              duracion_atencion_escena_min: parseFloat(values[13]) || 15,
               requiere_traslado: true,
+              tiempo_llegada_hospital: null,
+              tiempo_liberacion: null,
               tiempo_respuesta_min: parseFloat(values[12]) || 7.5,
             };
             parsed.push(inc);
