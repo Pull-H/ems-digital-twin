@@ -14,16 +14,18 @@ Completado:
 
 Pendiente principal:
 
-- Decidir si el backend canonico sera Node/Express o FastAPI.
+- Retirar duplicacion o definir futuro del backend FastAPI experimental.
 - Agregar persistencia y validacion fuerte de payloads.
 - Incorporar pruebas automatizadas y Dockerfile.
 
 ## Arquitectura actual
 
 - `src/`: frontend React/Vite y motores TypeScript de simulacion, prediccion, despacho, estadistica y comparacion.
-- `server.ts`: servidor Express que expone la API y sirve Vite en desarrollo o `dist` en produccion.
-- `backend/app/main.py`: backend FastAPI experimental con endpoints incompletos.
+- `server.ts`: backend canonico de Fase 1. Servidor Express que expone la API y sirve Vite en desarrollo o `dist` en produccion.
+- `backend/app/main.py`: backend FastAPI experimental con endpoints incompletos. No es la ruta principal de ejecucion.
 - `docs/`: tickets y notas de avance hacia implementacion.
+
+La decision arquitectonica esta documentada en [docs/ADR-001_BACKEND_CANONICO.md](docs/ADR-001_BACKEND_CANONICO.md).
 
 ## Ejecutar localmente
 
@@ -59,6 +61,8 @@ Copiar `.env.example` a `.env.local` si se necesita configuracion local.
 - `VITE_API_BASE_URL`: URL base de la API si el frontend se sirve separado. Vacio usa rutas relativas.
 
 ## API principal
+
+Backend canonico: `server.ts` en Node.js + Express.
 
 - `GET /api/health`
 - `POST /api/simulations`

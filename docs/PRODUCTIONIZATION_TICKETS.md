@@ -6,10 +6,10 @@ Objetivo de esta fase: convertir la demo academica en una base implementable, me
 
 | ID | Ticket | Estado | Criterio de aceptacion |
 | --- | --- | --- | --- |
-| EMS-001 | Documentar arquitectura, ejecucion y backlog inicial | Hecho | README orientado al proyecto y este tablero con prioridad, alcance y estado. |
+| EMS-001 | Definir backend canonico del proyecto | Hecho | ADR documenta `server.ts` como backend canonico de Fase 1 y FastAPI queda marcado como experimental. |
 | EMS-002 | Unificar contrato de metricas de simulacion | Hecho | `SimulationMetrics` se inicializa desde una fabrica compartida y las vistas usan `incidentes_totales`. |
 | EMS-003 | Conectar frontend con API Node con fallback local | Hecho | La app intenta usar `/api/simulations`, `/api/simulations/step` y `/api/comparisons`; si falla, sigue operando localmente. |
-| EMS-004 | Decidir backend canonico y retirar duplicacion FastAPI/Express | Pendiente | Un solo backend queda como fuente oficial o se define una frontera clara entre ambos. |
+| EMS-004 | Retirar duplicacion FastAPI/Express | Pendiente | FastAPI se elimina, se migra a paridad real, o se separa con responsabilidades no duplicadas. |
 | EMS-005 | Persistencia de corridas, incidentes importados y parametros | Pendiente | Las simulaciones sobreviven reinicios y se pueden consultar por `run_id`. |
 | EMS-006 | Validacion de entrada y errores API consistentes | Pendiente | Endpoints rechazan payloads invalidos con errores tipados y mensajes estables. |
 | EMS-007 | Pruebas automatizadas de motores de simulacion/despacho/estadistica | Pendiente | Tests cubren generacion reproducible, seleccion de ambulancia, metricas y benchmark. |

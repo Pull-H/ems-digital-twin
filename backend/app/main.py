@@ -2,6 +2,9 @@
 EMS Digital Twin Prototype - FastAPI Backend
 Simulación de red de servicios médicos de emergencia (EMS), despacho predictivo y análisis de equidad.
 """
+# Architecture note:
+# The canonical Phase 1 backend is `server.ts` (Node.js + Express).
+# This FastAPI module is experimental until a migration/separation ticket is approved.
 from fastapi import FastAPI, HTTPException, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
