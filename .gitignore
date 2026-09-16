@@ -7,3 +7,10 @@ coverage/
 .env*
 !.env.example
 .serena/
+
+# Local research data and generated artifacts
+/backend/data/nyc_ems/
+/reports/nyc_ems/
+/research/artifacts/
+/research/private/
+/research/**/__pycache__/

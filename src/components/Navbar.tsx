@@ -9,6 +9,7 @@ import {
   GitCompare,
   Layers,
   MapPin,
+  MessageCircle,
   Play,
   RotateCcw,
   Sliders,
@@ -57,6 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'comparison', label: 'Comparación & Equidad', icon: GitCompare },
     { id: 'stats', label: 'Pruebas Estadísticas', icon: BarChart3 },
     { id: 'data', label: 'Datos & CSV', icon: Database },
+    { id: 'assistant', label: 'Asistente EMS', icon: MessageCircle },
     { id: 'code', label: 'Arquitectura & Python', icon: FileCode },
   ];
 

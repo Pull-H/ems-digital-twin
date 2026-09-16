@@ -1,0 +1,32 @@
+{
+  "mapping_version": "1.0.0",
+  "flags": {
+    "status": "candidate_requires_profile_verification",
+    "normalization": "trim_uppercase",
+    "true_codes": ["Y"],
+    "false_codes": ["N"],
+    "unknown_action": "preserve_raw_and_return_null",
+    "verified_snapshot_id": null
+  },
+  "borough": {
+    "status": "pending_observed_categories_and_official_crosswalk",
+    "normalization": "trim_uppercase",
+    "aliases": {},
+    "unknown_id": "UNKNOWN"
+  },
+  "initial_severity_to_simulation_priority": {
+    "status": "pending_documented_mapping",
+    "entries": {},
+    "unmapped_action": "block_simulation_adapter_keep_historical_code"
+  },
+  "initial_call_type_to_simulation_type": {
+    "status": "pending_documented_mapping",
+    "entries": {},
+    "unmapped_action": "block_simulation_adapter_keep_historical_code"
+  },
+  "dispatch_area_to_geometry": {
+    "status": "pending_external_geometry",
+    "entries": {},
+    "unmapped_action": "no_coordinates"
+  }
+}

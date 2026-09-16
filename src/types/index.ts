@@ -274,3 +274,41 @@ export interface RelocationRecommendation {
   prioridad: 'alta' | 'media';
   timestamp_sim_min: number;
 }
+
+export interface AssistantChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp?: string;
+}
+
+export type AssistantIntent =
+  | 'estado_proyecto'
+  | 'datos_historicos'
+  | 'metodologia_articulo'
+  | 'prediccion'
+  | 'simulacion'
+  | 'comparacion'
+  | 'instrumentos'
+  | 'general';
+
+export interface AssistantEvidence {
+  title: string;
+  source: string;
+  excerpt: string;
+}
+
+export interface AssistantQueryRequest {
+  message: string;
+  conversation?: AssistantChatMessage[];
+}
+
+export interface AssistantQueryResponse {
+  answer: string;
+  intent: AssistantIntent;
+  status: 'answered' | 'not_ready' | 'needs_more_context';
+  available_capabilities: string[];
+  pending_capabilities: string[];
+  evidence: AssistantEvidence[];
+  graph_trace: string[];
+  generated_at: string;
+}

@@ -8,6 +8,7 @@ import { ComparisonView } from './components/ComparisonView';
 import { StatisticalPanel } from './components/StatisticalPanel';
 import { DataManagement } from './components/DataManagement';
 import { PythonArchitectureViewer } from './components/PythonArchitectureViewer';
+import { AssistantPanel } from './components/AssistantPanel';
 
 import {
   Ambulance,
@@ -414,6 +415,8 @@ export const App: React.FC = () => {
             }}
           />
         )}
+
+        {activeTab === 'assistant' && <AssistantPanel />}
 
         {activeTab === 'code' && <PythonArchitectureViewer />}
       </main>

@@ -1,4 +1,6 @@
 import {
+  AssistantQueryRequest,
+  AssistantQueryResponse,
   CreateSimulationRequest,
   CreateSimulationResponse,
   DispatchPolicy,
@@ -64,5 +66,14 @@ export const simulationApi = {
     });
 
     return requestJson<ComparisonBenchmarkResult>(`/api/comparisons?${params.toString()}`);
+  },
+};
+
+export const assistantApi = {
+  query(payload: AssistantQueryRequest): Promise<AssistantQueryResponse> {
+    return requestJson<AssistantQueryResponse>('/api/assistant/query', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 };

@@ -12,7 +12,8 @@ import {
 import { EMSSimulationEngine, generateSyntheticIncidents } from './src/services/simulationEngine';
 import { runComparisonBenchmark } from './src/services/comparisonService';
 import { computeSimulationMetrics } from './src/services/statsEngine';
-import { DispatchPolicy, Incident, SimulationScenario, SimulationState } from './src/types';
+import { runAssistantQuery } from './src/services/assistantGraph';
+import { AssistantQueryRequest, DispatchPolicy, Incident, SimulationScenario, SimulationState } from './src/types';
 
 async function startServer() {
   const app = express();
@@ -347,6 +348,28 @@ async function startServer() {
     }
 
     res.status(400).json({ error: 'Tipo de exportación no soportado.' });
+  });
+
+  // 20. POST /api/assistant/query (LangGraph assistant foundation)
+  app.post('/api/assistant/query', async (req, res) => {
+    const payload = req.body as AssistantQueryRequest;
+
+    if (!payload?.message || typeof payload.message !== 'string') {
+      return res.status(400).json({ error: 'Mensaje requerido para consultar el asistente.' });
+    }
+
+    try {
+      const response = await runAssistantQuery({
+        message: payload.message,
+        conversation: Array.isArray(payload.conversation) ? payload.conversation.slice(-8) : [],
+      });
+      return res.json(response);
+    } catch (error) {
+      console.error('Assistant graph failed:', error);
+      return res.status(500).json({
+        error: 'No se pudo ejecutar el asistente analitico.',
+      });
+    }
   });
 
   // --- Vite Dev & Production Static Middleware ---

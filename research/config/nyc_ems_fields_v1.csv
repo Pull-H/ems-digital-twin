@@ -1,0 +1,27 @@
+field,normalized_type,provenance,availability,unit,required_value,definition
+incident_id,string,observed,creation,identifier,true,Identificador del incidente conservado como texto
+incident_datetime,local_datetime,observed,creation,local_time,true,Creacion del incidente en CAD
+initial_call_type,string,observed,creation,code,false,Tipo inicial de llamada; no es diagnostico clinico
+initial_severity_level_code,string,observed,creation,code,false,Severidad inicial sin conversion automatica a prioridad del prototipo
+final_call_type,string,observed,closure,code,false,Tipo final para auditoria; excluido de predictores al crear llamada
+final_severity_level_code,string,observed,closure,code,false,Severidad final para auditoria
+first_assignment_datetime,local_datetime,observed,assignment,local_time,false,Primera asignacion
+valid_dispatch_rspns_time_indc,string,observed,retrospective,flag_code,false,Bandera oficial de validez de tiempo de despacho
+dispatch_response_seconds_qy,number,observed,retrospective,seconds,false,Segundos desde creacion hasta primera asignacion
+first_activation_datetime,local_datetime,observed,activation,local_time,false,Primera unidad senala que sale hacia escena
+first_on_scene_datetime,local_datetime,observed,on_scene,local_time,false,Primera unidad senala llegada a escena
+valid_incident_rspns_time_indc,string,observed,retrospective,flag_code,false,Bandera oficial de validez de tiempo de respuesta
+incident_response_seconds_qy,number,observed,retrospective,seconds,false,Segundos desde creacion hasta llegada a escena
+incident_travel_tm_seconds_qy,number,observed,retrospective,seconds,false,Segundos desde asignacion hasta escena; incluye preactivacion
+first_to_hosp_datetime,local_datetime,observed,to_hospital,local_time,false,Primera unidad senala salida hacia hospital
+first_hosp_arrival_datetime,local_datetime,observed,hospital_arrival,local_time,false,Primera unidad senala llegada a hospital sin identificar destino
+incident_close_datetime,local_datetime,observed,closure,local_time,false,Cierre del incidente; no equivale a liberacion de ambulancia
+held_indicator,string,observed,retrospective,flag_code,false,Indica que no se pudo asignar unidad inmediatamente
+incident_disposition_code,string,observed,closure,code,false,Codigo del resultado del incidente sin mapeo clinico inferido
+borough,string,observed,retrospective,zone_code,false,Borough publicado; disponibilidad en vivo no garantizada
+incident_dispatch_area,string,observed,retrospective,zone_code,false,Area de despacho publicada
+zipcode,string,observed,retrospective,postal_code,false,Codigo postal como texto; no asumir equivalencia ZCTA
+reopen_indicator,string,observed,retrospective,flag_code,false,Incidente cerrado y reabierto; se conserva en cohorte principal
+special_event_indicator,string,observed,retrospective,flag_code,false,Evento especial para estratificacion de cohortes
+standby_indicator,string,observed,retrospective,flag_code,false,Asignacion de espera preventiva
+transfer_indicator,string,observed,retrospective,flag_code,false,Transporte entre establecimientos
