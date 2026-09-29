@@ -78,7 +78,7 @@ Agregar una variable exige actualizar esta clasificacion y documentar su disponi
 
 ## Frontera con el simulador
 
-El formato historico no es directamente `Incident` de `src/types/index.ts`. Fase 6 implementara un adaptador y fase 7 actualizara el contrato compartido para representar valores desconocidos. Hasta entonces los archivos historicos no deben pasar por el importador actual que usa coordenadas y prioridades por defecto.
+El formato historico no es directamente `Incident` de `src/types/index.ts`. La Fase 6 ya genera `simulation/historical_replay_inputs.parquet`, `observed_time_components.parquet`, `nyc_scenario.json` y supuestos versionados; la Fase 7 debe crear el adaptador FastAPI/UI y actualizar el contrato compartido para representar valores desconocidos. Hasta entonces los archivos historicos no deben pasar por el importador actual que usa coordenadas y prioridades por defecto.
 
 Reproduccion historica: permite mostrar tiempos observados y huecos. Contrafactual: entrega a ambas politicas las mismas llegadas y atributos iniciales admitidos; respuesta, despacho y liberacion son salidas de cada corrida. Guardar referencias observadas por separado para evitar fuga de resultados futuros.
 

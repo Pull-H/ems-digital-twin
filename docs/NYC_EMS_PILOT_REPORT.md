@@ -6,9 +6,9 @@ Estado: completado. Ejecucion: 8 de septiembre de 2026 en America/Lima; timestam
 
 Snapshot: `20260909T035057856354Z-56d48fe7ce9b`.
 
-- [Manifiesto y perfil del piloto](../backend/data/nyc_ems/20260909T035057856354Z-56d48fe7ce9b/manifest.json).
-- [Evidencia de descubrimiento](../backend/data/nyc_ems/20260909T035057856354Z-56d48fe7ce9b/discovery.json).
-- [Primera pagina original comprimida](../backend/data/nyc_ems/20260909T035057856354Z-56d48fe7ce9b/raw/2026-04/page-000000000.json.gz).
+- [Manifiesto y perfil del piloto](../data/nyc_ems/20260909T035057856354Z-56d48fe7ce9b/manifest.json).
+- [Evidencia de descubrimiento](../data/nyc_ems/20260909T035057856354Z-56d48fe7ce9b/discovery.json).
+- [Primera pagina original comprimida](../data/nyc_ems/20260909T035057856354Z-56d48fe7ce9b/raw/2026-04/page-000000000.json.gz).
 
 Estas rutas existen localmente y estan excluidas de Git. Para reproducir en otra computadora se requiere transferir la copia respaldada o ejecutar el extractor para crear otro snapshot; el API puede revisar datos publicados.
 

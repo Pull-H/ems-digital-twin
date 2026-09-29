@@ -1,71 +1,46 @@
-"""
-EMS Digital Twin Prototype - FastAPI Backend
-Simulación de red de servicios médicos de emergencia (EMS), despacho predictivo y análisis de equidad.
-"""
-# Architecture note:
-# The canonical Phase 1 backend is `server.ts` (Node.js + Express).
-# This FastAPI module is experimental until a migration/separation ticket is approved.
-from fastapi import FastAPI, HTTPException, Query, UploadFile, File
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
-import datetime
-import math
-import random
 
-app = FastAPI(
-    title="EMS Digital Twin API",
-    description="Digital Twin prototype for Emergency Medical Services with equity & predictive dispatch",
-    version="1.0.0"
-)
+from app.api import assistant, catalog, comparisons, data_io, datasets, dispatch, health, methodology, model_performance, predictions, simulations
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-# In-memory demo data store
-@app.get("/")
-def root():
-    return {
-        "project": "EMS Digital Twin Prototype",
-        "version": "1.0.0",
-        "status": "online",
-        "docs_url": "/docs"
-    }
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="EMS Digital Twin API",
+        description="Backend oficial en Python/FastAPI para el gemelo digital EMS.",
+        version="0.2.0",
+    )
 
-@app.get("/api/health")
-def health_check():
-    return {
-        "status": "healthy",
-        "timestamp": datetime.datetime.utcnow().isoformat(),
-        "zones_count": 20,
-        "bases_count": 4,
-        "hospitals_count": 3,
-        "ambulances_count": 12
-    }
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-@app.get("/api/zones")
-def get_zones():
-    return {"message": "Consulte /api/zones en el servidor principal para obtener la cartografía GeoJSON completa de las 20 zonas."}
+    app.include_router(health.router, prefix="/api")
+    app.include_router(catalog.router, prefix="/api")
+    app.include_router(datasets.router, prefix="/api")
+    app.include_router(data_io.router, prefix="/api")
+    app.include_router(simulations.router, prefix="/api")
+    app.include_router(predictions.router, prefix="/api")
+    app.include_router(model_performance.router, prefix="/api")
+    app.include_router(methodology.router, prefix="/api")
+    app.include_router(dispatch.router, prefix="/api")
+    app.include_router(comparisons.router, prefix="/api")
+    app.include_router(assistant.router, prefix="/api")
 
-@app.get("/api/ambulances")
-def get_ambulances():
-    return {"message": "Retorna el estado en tiempo real de la flota de ambulancias."}
+    @app.get("/")
+    def root():
+        return {
+            "project": "EMS Digital Twin",
+            "backend": "fastapi",
+            "status": "online",
+            "docs_url": "/docs",
+        }
 
-@app.post("/api/dispatch/evaluate")
-def evaluate_dispatch(data: Dict[str, Any]):
-    return {
-        "selected_ambulance_id": 4,
-        "ambulance_code": "AMB-04",
-        "estimated_arrival_minutes": 6.3,
-        "policy_used": data.get("policy", "predictivo"),
-        "rationale": "Se seleccionó la ambulancia AMB-04 porque arriba en 6.3 min y preserva cobertura mínima en sector de alta vulnerabilidad."
-    }
+    return app
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+app = create_app()

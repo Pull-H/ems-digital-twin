@@ -19,9 +19,22 @@ import {
 
 export interface ComparisonBenchmarkResult {
   scenario: SimulationScenario;
+  dataset_id?: string;
+  model_id?: string;
   semilla: number;
   duracion_min: number;
   num_ambulancias: number;
+  generated_at?: string;
+  experiment?: {
+    phase: string;
+    design: string;
+    repetitions: number;
+    start_minute: number;
+    demand_source: 'historical' | 'forecast';
+    primary_outcome: string;
+    unit_of_inference: string;
+    positive_delta_interpretation: string;
+  };
   traditional_run: {
     metrics: SimulationMetrics;
     incidents: Incident[];
@@ -33,11 +46,42 @@ export interface ComparisonBenchmarkResult {
   statistical_tests: StatisticalTestResult;
   resumen_ejecutivo: {
     reduccion_tiempo_promedio_min: number;
+    reduccion_p90_min?: number;
     aumento_cumplimiento_8min_pct: number;
+    reduccion_no_finalizados?: number;
     mejora_razon_disparidad: number;
     tiempo_promedio_q1_trad: number;
     tiempo_promedio_q1_pred: number;
+    interpretacion?: string;
   };
+  replications?: {
+    replica: number;
+    seed: number;
+    paired_incidents: number;
+    traditional: { metrics: SimulationMetrics; completed: number; unfinished: number };
+    predictive: { metrics: SimulationMetrics; completed: number; unfinished: number };
+    delta: {
+      mean_response_min: number;
+      median_response_min: number;
+      p90_response_min: number;
+      under_8min_pct: number;
+      completed: number;
+      unfinished: number;
+    };
+  }[];
+  paired_incident_sample?: {
+    replica: number;
+    incident_id: string;
+    zone_id: number;
+    traditional_response_min: number;
+    predictive_response_min: number;
+    delta_response_min: number;
+  }[];
+  artifacts?: {
+    json: string;
+    markdown: string;
+  };
+  limitations?: string[];
 }
 
 export function runComparisonBenchmark(

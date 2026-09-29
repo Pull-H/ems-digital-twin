@@ -1,13 +1,13 @@
 # Contrato de simulacion
 
-Este contrato define la forma canonica de los datos que comparten el motor TypeScript, la API Node/Express y el frontend React.
+Este contrato define la forma canonica de los datos que comparten la API FastAPI, los artefactos de simulacion y el frontend React.
 
 ## Fuente de verdad
 
-- Tipos canonicos: `src/types/index.ts`.
+- Tipos canonicos frontend: `src/types/index.ts`.
 - Estado vivo de simulacion: `SimulationState`.
-- Motor que produce el estado: `src/services/simulationEngine.ts`.
-- Backend canonico que expone el estado: `server.ts`.
+- Backend canonico que expone el estado: `backend/app/main.py`.
+- Servicios backend: `backend/app/services/`.
 
 ## SimulationState
 
@@ -80,6 +80,29 @@ interface SimulationMetrics {
 
 ## Ejemplo de respuesta: POST /api/simulations
 
+`POST /api/simulations` acepta el modo demo por defecto y, desde EMS-018, tambien modo historico:
+
+```json
+{
+  "scenario": "dia_normal",
+  "policy": "predictivo",
+  "num_ambulances": 80,
+  "seed": 12345,
+  "duration_min": 43200,
+  "weights": {
+    "peso_tiempo": 0.45,
+    "peso_demanda": 0.25,
+    "peso_cobertura": 0.15,
+    "peso_equidad": 0.15
+  },
+  "data_mode": "historical",
+  "dataset_id": "20260909T040537085584Z-56d48fe7ce9b",
+  "model_id": "hist_gradient_boosting_v1"
+}
+```
+
+El modo historico obtiene datasets desde `GET /api/datasets` y perfiles desde `GET /api/datasets/{dataset_id}/profile`. Las coordenadas de incidentes historicos son aproximaciones versionadas, no GPS real.
+
 ```json
 {
   "run_id": "SIM-1788300367429",
@@ -129,9 +152,45 @@ interface SimulationMetrics {
 
 Nota: el ejemplo omite contenido de arreglos para hacerlo legible; en ejecucion real `zones`, `bases`, `hospitals`, `ambulances` y `predictions` vienen poblados.
 
+## Ampliacion NYC: motor de eventos discretos
+
+Contrato vigente de NYC: [motor e integracion visual](NYC_EMS_ENGINE_VISUAL_INTEGRATION.md).
+Creacion admite `demand_source: "historical" | "forecast"`, duracion maxima 1440 min,
+flota 1-1500 y un inicio dentro de validacion/prueba. `data_mode: "historical"` selecciona
+el escenario NYC para ambas entradas. `simulation.demand_source` distingue llegadas reales
+de sinteticas; toda atencion producida por el motor es simulada.
+
+El objeto `simulation` agrega reloj, supuestos, indicadores por zona y referencia observada.
+`metrics` usa todos los llegados; `incidents` contiene hasta 1000 para visualizacion/exportacion.
+`start_minute` y `sim_minute` son minutos desde el inicio del snapshot.
+La politica/configuracion NYC se cambia creando una nueva corrida; PATCH devuelve 409.
+La API persiste localmente la ultima corrida y un indice de corridas recientes en `data/runtime`.
+`GET /api/simulations` lista corridas persistidas, `GET /api/simulations/current` devuelve
+la activa y `POST /api/simulations/restore/latest` reconstruye la ultima corrida desde sus
+parametros y reloj persistidos. Esto no equivale a aislamiento multiusuario ni almacenamiento
+transaccional.
+Los run_id desconocidos devuelven 404; entradas invalidas devuelven 422.
+
+## Contrato del asistente analitico
+
+`POST /api/assistant/query` recibe:
+
+```json
+{
+  "message": "Interpreta la corrida actual",
+  "conversation": []
+}
+```
+
+Devuelve respuesta, intencion clasificada, estado, capacidades, evidencia y traza del grafo.
+El asistente puede consultar documentos locales, metricas de modelos, perfil de snapshot y
+corrida activa/persistida. Las comparaciones de politica deben basarse en los artefactos
+de Fase 8; no debe inventar mejoras fuera de esos resultados.
+
 ## Criterios de compatibilidad
 
-- Todo objeto `Incident` nuevo debe incluir `quintil_socioeconomico`, aunque pueda inferirse desde zona.
+- `quintil_socioeconomico` es `null` en NYC: no se infiere riqueza a partir del borough.
+- En NYC `por_quintil` esta vacio y los indicadores de disparidad son `null`; la UI no los presenta como resultados.
 - Un campo de tiempo que aun no ocurre se representa con `null`, no con `undefined`.
 - El frontend no debe importar `SimulationState` ni `SimEventLog` desde `simulationEngine`; debe importarlos desde `src/types`.
 - La API debe devolver `SimulationState` completo en creacion, step y cambios de configuracion.

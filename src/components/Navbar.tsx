@@ -14,10 +14,12 @@ import {
   RotateCcw,
   Sliders,
   Sparkles,
+  Workflow,
 } from 'lucide-react';
 import { DispatchPolicy, SimulationScenario } from '../types';
 
 interface NavbarProps {
+  historicalClock?: string;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   simMinute: number;
@@ -30,6 +32,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
+  historicalClock,
   activeTab,
   setActiveTab,
   simMinute,
@@ -53,10 +56,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const navTabs = [
     { id: 'map', label: 'Mapa & Gemelo 3D', icon: Box },
-    { id: 'simulation', label: 'Simulador en Vivo', icon: Sliders },
+    { id: 'simulation', label: historicalClock ? 'Escenarios NYC' : 'Simulador en Vivo', icon: Sliders },
     { id: 'prediction', label: 'Predicción de Demanda', icon: Brain },
-    { id: 'comparison', label: 'Comparación & Equidad', icon: GitCompare },
+    { id: 'comparison', label: historicalClock ? 'Experimentos' : 'Comparación & Equidad', icon: GitCompare },
     { id: 'stats', label: 'Pruebas Estadísticas', icon: BarChart3 },
+    { id: 'crispdm', label: 'CRISP-DM', icon: Workflow },
     { id: 'data', label: 'Datos & CSV', icon: Database },
     { id: 'assistant', label: 'Asistente EMS', icon: MessageCircle },
     { id: 'code', label: 'Arquitectura & Python', icon: FileCode },
@@ -66,20 +70,20 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs" id="app-main-navbar">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top Branding & Status Row */}
-        <div className="flex items-center justify-between h-16 border-b border-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-2 py-3 border-b border-slate-100">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white shadow-sm shadow-sky-500/30">
               <Activity className="w-6 h-6 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="font-bold text-slate-900 tracking-tight text-lg">EMS Digital Twin</span>
+                <span className="font-bold text-slate-900 text-lg">EMS Digital Twin</span>
                 <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
                   Prototipo Académico
                 </span>
               </div>
               <p className="text-xs text-slate-500 hidden sm:block">
-                Simulación urbana, despacho predictivo y análisis de equidad socioeconómica
+                {historicalClock ? 'NYC EMS · Demanda historica, pronosticos y escenarios simulados' : 'Simulacion urbana y despacho predictivo'}
               </p>
             </div>
           </div>
@@ -89,7 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Clock */}
             <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
               <span className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-emerald-500 animate-ping' : 'bg-slate-400'}`} />
-              <span className="font-mono font-semibold text-slate-700">T + {timeFormatted} hrs</span>
+              <span className="font-mono font-semibold text-slate-700">{historicalClock ? `${historicalClock.slice(11, 16)} NYC` : `T + ${timeFormatted} hrs`}</span>
             </div>
 
             {/* Scenario Pill */}
@@ -116,8 +120,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="btn-quick-benchmark"
               onClick={onRunQuickBenchmark}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium shadow-xs transition-colors"
-              title="Ejecutar comparación pareada automática de 12 horas"
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium shadow-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Ejecutar comparación pareada automática"
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Benchmark Pareado</span>

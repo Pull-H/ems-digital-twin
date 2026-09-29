@@ -3,8 +3,12 @@ import {
   AssistantQueryResponse,
   CreateSimulationRequest,
   CreateSimulationResponse,
+  CrispDmReport,
   DispatchPolicy,
   DispatchWeights,
+  HistoricalDatasetProfile,
+  HistoricalDatasetSummary,
+  ModelPerformanceReport,
   SimulationScenario,
   SimulationState,
 } from '../types';
@@ -56,7 +60,14 @@ export const simulationApi = {
     scenario: SimulationScenario,
     numAmbulances: number,
     seed: number,
-    durationMin = 720
+    durationMin = 720,
+    options: {
+      datasetId?: string;
+      modelId?: string;
+      startMinute?: number;
+      repetitions?: number;
+      demandSource?: 'historical' | 'forecast';
+    } = {}
   ): Promise<ComparisonBenchmarkResult> {
     const params = new URLSearchParams({
       scenario,
@@ -64,8 +75,23 @@ export const simulationApi = {
       seed: String(seed),
       duration: String(durationMin),
     });
+    if (options.datasetId) params.set('dataset_id', options.datasetId);
+    if (options.modelId) params.set('model_id', options.modelId);
+    if (options.startMinute !== undefined) params.set('start_minute', String(options.startMinute));
+    if (options.repetitions !== undefined) params.set('repetitions', String(options.repetitions));
+    if (options.demandSource) params.set('demand_source', options.demandSource);
 
     return requestJson<ComparisonBenchmarkResult>(`/api/comparisons?${params.toString()}`);
+  },
+};
+
+export const datasetApi = {
+  listDatasets(): Promise<{ datasets: HistoricalDatasetSummary[] }> {
+    return requestJson<{ datasets: HistoricalDatasetSummary[] }>('/api/datasets');
+  },
+
+  getProfile(datasetId: string): Promise<HistoricalDatasetProfile> {
+    return requestJson<HistoricalDatasetProfile>(`/api/datasets/${encodeURIComponent(datasetId)}/profile`);
   },
 };
 
@@ -75,5 +101,19 @@ export const assistantApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+};
+
+export const modelPerformanceApi = {
+  getReport(datasetId: string): Promise<ModelPerformanceReport> {
+    const params = new URLSearchParams({ dataset_id: datasetId });
+    return requestJson<ModelPerformanceReport>(`/api/model-performance?${params.toString()}`);
+  },
+};
+
+export const crispDmApi = {
+  getReport(datasetId: string): Promise<CrispDmReport> {
+    const params = new URLSearchParams({ dataset_id: datasetId });
+    return requestJson<CrispDmReport>(`/api/methodology/crisp-dm?${params.toString()}`);
   },
 };

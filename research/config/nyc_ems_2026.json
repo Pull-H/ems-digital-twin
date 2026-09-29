@@ -132,7 +132,7 @@
   "paths": {
     "resolution_base": "repository_root",
     "snapshot_id_policy": "extraction_utc_timestamp_and_config_hash",
-    "data_root": "backend/data/nyc_ems",
+    "data_root": "data/nyc_ems",
     "snapshot_subdirectories": {"raw": "raw", "interim": "interim", "processed": "processed", "simulation": "simulation"},
     "reports_root": "reports/nyc_ems",
     "models_root": "research/artifacts/nyc_ems",

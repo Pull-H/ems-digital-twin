@@ -10,8 +10,9 @@ type ChatEntry = AssistantChatMessage & {
 
 const QUICK_PROMPTS = [
   'En que fase esta el proyecto?',
-  'Que datos historicos tenemos disponibles?',
-  'Ya puedo consultar resultados de simulacion?',
+  'Interpreta la corrida actual',
+  'Que modelo predictivo esta seleccionado?',
+  'Que puedo comparar en fase 8?',
   'Como se usaran Aiken, Cronbach y KR-20?',
 ];
 
@@ -21,7 +22,7 @@ export const AssistantPanel: React.FC = () => {
     {
       role: 'assistant',
       content:
-        'Estoy listo para ayudarte con el estado del proyecto, el dataset NYC EMS, la metodologia y los limites actuales. Las metricas predictivas y simulaciones calibradas se conectaran despues de la fase 7.',
+        'Estoy listo para ayudarte con el estado del proyecto, el dataset NYC EMS, los modelos entrenados, la corrida activa y los limites metodologicos.',
       timestamp: new Date().toISOString(),
     },
   ]);
@@ -94,12 +95,12 @@ export const AssistantPanel: React.FC = () => {
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-slate-900">Asistente Analitico EMS</h2>
-                <p className="text-xs text-slate-500">Base LangGraph conectada a documentacion local del proyecto</p>
+                <p className="text-xs text-slate-500">LangGraph conectado a documentacion, modelos y corrida activa</p>
               </div>
             </div>
             <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Fundacion activa
+              Operativo
             </span>
           </div>
 
@@ -190,7 +191,7 @@ export const AssistantPanel: React.FC = () => {
               <input
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
-                placeholder="Pregunta sobre fases, dataset, metodologia o limites actuales..."
+                placeholder="Pregunta sobre fases, modelos, simulacion o limites actuales..."
                 className="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
               />
               <button
@@ -214,8 +215,8 @@ export const AssistantPanel: React.FC = () => {
             <ul className="space-y-2 text-xs leading-5 text-slate-600">
               {(latestResponse?.available_capabilities || [
                 'Consultar documentacion y estado del pipeline.',
+                'Interpretar modelos entrenados y corrida activa.',
                 'Explicar alcance y limites actuales.',
-                'Preparar la conexion futura con prediccion y simulacion.',
               ]).map((item) => (
                 <li key={item} className="flex gap-2">
                   <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
@@ -232,9 +233,9 @@ export const AssistantPanel: React.FC = () => {
             </div>
             <ul className="space-y-2 text-xs leading-5 text-slate-600">
               {(latestResponse?.pending_capabilities || [
-                'Metricas reales de modelos predictivos.',
-                'Resultados de simulaciones calibradas.',
-                'Comparacion experimental final de politicas.',
+                'Conclusiones causales u operativas reales.',
+                'Resultados de Aiken, Cronbach y KR-20 con participantes reales.',
+                'Despliegue multiusuario con auditoria transaccional.',
               ]).map((item) => (
                 <li key={item} className="flex gap-2">
                   <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
@@ -247,7 +248,7 @@ export const AssistantPanel: React.FC = () => {
           <div className="bg-slate-900 rounded-lg p-4 text-xs leading-5 text-slate-200 shadow-xs">
             <p className="font-semibold text-white">Flujo LangGraph</p>
             <p className="mt-2">
-              La version actual usa nodos deterministas para clasificar preguntas, consultar documentos y bloquear temas que dependen de fases pendientes.
+              El grafo clasifica la pregunta, consulta documentos, lee artefactos locales y usa el estado persistido de simulacion.
             </p>
             {latestResponse && (
               <p className="mt-2 text-slate-300">

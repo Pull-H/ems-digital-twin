@@ -70,6 +70,7 @@ class PilotTests(unittest.TestCase):
         test_root.mkdir(parents=True, exist_ok=True)
         self.temporary = tempfile.TemporaryDirectory(dir=test_root)
         self.folder = Path(self.temporary.name)
+        self.config["paths"]["models_root"] = (self.folder / "artifacts").relative_to(pipeline.ROOT).as_posix()
         self.client = FakeClient(self.config)
         self.evidence = pipeline.discover(self.client, self.config)
         pipeline.save_discovery(self.folder, self.config, self.evidence)
@@ -93,6 +94,65 @@ class PilotTests(unittest.TestCase):
         self.assertEqual(same["sessions"][-1]["pages_downloaded"], 0)
         self.assertEqual(self.client.offsets, [0, 3, 6])
         self.assertEqual(same["summary"]["ordered_ids_sha256"], completed["summary"]["ordered_ids_sha256"])
+
+    def test_phase3_writes_quality_and_cohort_artifacts(self):
+        pipeline.extract(self.client, self.config, self.folder)
+        result = pipeline.phase3(self.folder, self.config)
+        self.assertEqual(result["source_rows"], 7)
+        self.assertEqual(result["demand_cohort_rows"], 7)
+        self.assertTrue((self.folder / "interim/quality_report.json").exists())
+        self.assertTrue((self.folder / "interim/quarantine.csv").exists())
+        self.assertTrue((self.folder / "processed/incidents_clean.parquet").exists())
+        self.assertTrue((self.folder / "processed/demand_cohort.parquet").exists())
+        summary = pipeline.read_json(self.folder / "processed/cohort_summary.json")
+        self.assertEqual(summary["source_rows"], 7)
+        self.assertEqual(summary["excluded_from_demand"]["duplicate_incident_id"], 0)
+
+    def test_phase4_writes_hourly_panel_and_simulation_events(self):
+        pipeline.extract(self.client, self.config, self.folder)
+        pipeline.phase3(self.folder, self.config)
+        result = pipeline.phase4(self.folder, self.config)
+        self.assertGreater(result["panel_rows"], 0)
+        self.assertEqual(result["simulation_events"], 7)
+        self.assertTrue((self.folder / "processed/hourly_demand_panel.parquet").exists())
+        self.assertTrue((self.folder / "processed/model_ready_hourly_demand_panel.parquet").exists())
+        self.assertTrue((self.folder / "processed/feature_dictionary.json").exists())
+        self.assertTrue((self.folder / "processed/temporal_partitions.json").exists())
+        self.assertTrue((self.folder / "processed/geography_summary.json").exists())
+        self.assertTrue((self.folder / "simulation/historical_incident_events.parquet").exists())
+
+    def test_phase5_trains_three_models_and_writes_reports(self):
+        pipeline.extract(self.client, self.config, self.folder)
+        pipeline.phase3(self.folder, self.config)
+        pipeline.phase4(self.folder, self.config)
+        result = pipeline.phase5(self.folder, self.config)
+        self.assertEqual(result["models_compared"], 3)
+        self.assertIn(result["best_model_id"], {
+            "baseline_temporal_v1",
+            "random_forest_v1",
+            "hist_gradient_boosting_v1",
+        })
+        self.assertTrue((self.folder / "processed/retrospective_forecasts.parquet").exists())
+        metrics = pipeline.repository_path(result["metrics"])
+        model_card = pipeline.repository_path(result["model_card"])
+        predictions = pipeline.repository_path(result["predictions"])
+        self.assertTrue(metrics.exists())
+        self.assertTrue(model_card.exists())
+        self.assertTrue(predictions.exists())
+
+    def test_phase6_writes_historical_replay_and_calibration_package(self):
+        pipeline.extract(self.client, self.config, self.folder)
+        pipeline.phase3(self.folder, self.config)
+        pipeline.phase4(self.folder, self.config)
+        pipeline.phase5(self.folder, self.config)
+        result = pipeline.phase6(self.folder, self.config)
+        self.assertEqual(result["historical_arrivals"], 7)
+        self.assertTrue((self.folder / "simulation/historical_replay_inputs.parquet").exists())
+        self.assertTrue((self.folder / "simulation/observed_time_components.parquet").exists())
+        self.assertTrue((self.folder / "simulation/calibration_parameters.json").exists())
+        self.assertTrue((self.folder / "simulation/nyc_scenario.json").exists())
+        self.assertTrue((self.folder / "simulation/resource_assumptions.json").exists())
+        self.assertTrue((self.folder / "simulation/phase6_manifest.json").exists())
 
     def test_tampered_page_is_rejected_before_new_download(self):
         manifest = pipeline.extract(self.client, self.config, self.folder, max_pages=1)

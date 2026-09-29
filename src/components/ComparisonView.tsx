@@ -1,28 +1,17 @@
 import React from 'react';
 import { ComparisonBenchmarkResult } from '../services/comparisonService';
-import { SocioeconomicQuintile } from '../types';
+import { ArrowRight, BarChart3, CheckCircle2, Clock, FileText, GitCompare, Loader2, Play, TrendingDown } from 'lucide-react';
 import {
-  GitCompare,
-  TrendingDown,
-  TrendingUp,
-  Scale,
-  Award,
-  CheckCircle2,
-  Clock,
-  ArrowRight,
-  ShieldCheck,
-} from 'lucide-react';
-import {
-  BarChart,
   Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  LineChart,
-  Line,
 } from 'recharts';
 
 interface ComparisonViewProps {
@@ -31,19 +20,28 @@ interface ComparisonViewProps {
   isLoading: boolean;
 }
 
-export const ComparisonView: React.FC<ComparisonViewProps> = ({
-  benchmark,
-  onRerunBenchmark,
-  isLoading,
-}) => {
+const format = (value: number | null | undefined, digits = 1) =>
+  typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : 'N/D';
+
+export const ComparisonView: React.FC<ComparisonViewProps> = ({ benchmark, onRerunBenchmark, isLoading }) => {
   if (!benchmark) {
     return (
-      <div className="bg-white p-8 rounded-xl border border-slate-200 text-center space-y-3" id="comparison-loading">
-        <GitCompare className="w-12 h-12 text-indigo-500 mx-auto animate-bounce" />
-        <h3 className="font-bold text-lg text-slate-800">Generando Benchmark Pareado...</h3>
-        <p className="text-xs text-slate-500 max-w-md mx-auto">
-          Ejecutando simulación idéntica con el mismo conjunto de llamadas para comparar la política tradicional frente a la predictiva.
-        </p>
+      <div className="bg-white p-8 rounded-lg border border-slate-200 text-center space-y-4" id="comparison-empty">
+        <GitCompare className="w-12 h-12 text-indigo-500 mx-auto" />
+        <div>
+          <h3 className="font-bold text-lg text-slate-800">Experimento pareado listo para ejecutar</h3>
+          <p className="text-sm text-slate-500 max-w-xl mx-auto mt-2">
+            Compara despacho tradicional y predictivo con la misma ventana, flota, modelo y semillas. En NYC genera resultados de Fase 8.
+          </p>
+        </div>
+        <button
+          onClick={onRerunBenchmark}
+          disabled={isLoading}
+          className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+          Ejecutar experimento
+        </button>
       </div>
     );
   }
@@ -51,61 +49,62 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({
   const trad = benchmark.traditional_run.metrics;
   const pred = benchmark.predictive_run.metrics;
   const res = benchmark.resumen_ejecutivo;
-
-  // Prepare chart data for Quintiles Q1-Q5
-  const quintiles: SocioeconomicQuintile[] = [1, 2, 3, 4, 5];
-  const quintileNames = {
-    1: 'Q1 (Muy Vulnerable)',
-    2: 'Q2 (Vulnerable)',
-    3: 'Q3 (Medio)',
-    4: 'Q4 (Medio-Alto)',
-    5: 'Q5 (Menor Vuln.)',
-  };
-
-  const responseTimeByQuintileData = quintiles.map((q) => ({
-    quintil: quintileNames[q],
-    'Despacho Tradicional': trad.por_quintil[q]?.tiempo_promedio_respuesta || 0,
-    'Despacho Predictivo': pred.por_quintil[q]?.tiempo_promedio_respuesta || 0,
+  const isHistorical = Boolean(benchmark.experiment);
+  const ci = benchmark.statistical_tests.bootstrap_ci;
+  const replicationData = (benchmark.replications || []).map((rep) => ({
+    replica: `R${rep.replica}`,
+    'Delta media': rep.delta.mean_response_min,
+    'Delta P90': rep.delta.p90_response_min,
+    'Delta <8m': rep.delta.under_8min_pct,
+    'Pares': rep.paired_incidents,
   }));
 
-  const compliance8MinByQuintileData = quintiles.map((q) => ({
-    quintil: quintileNames[q],
-    'Despacho Tradicional': trad.por_quintil[q]?.porcentaje_menor_8min || 0,
-    'Despacho Predictivo': pred.por_quintil[q]?.porcentaje_menor_8min || 0,
-  }));
-
-  // Prepare response time histogram comparison
-  const bins = [4, 6, 8, 10, 12, 14, 16, 20];
-  const histogramData = bins.map((binLimit, idx) => {
-    const prevLimit = idx === 0 ? 0 : bins[idx - 1];
-    const tradCount = benchmark.traditional_run.incidents.filter(
-      (i) => i.tiempo_respuesta_min !== null && i.tiempo_respuesta_min > prevLimit && i.tiempo_respuesta_min <= binLimit
-    ).length;
-    const predCount = benchmark.predictive_run.incidents.filter(
-      (i) => i.tiempo_respuesta_min !== null && i.tiempo_respuesta_min > prevLimit && i.tiempo_respuesta_min <= binLimit
-    ).length;
-
-    return {
-      rango: `${prevLimit}-${binLimit}m`,
-      'Tradicional (Frecuencia)': tradCount,
-      'Predictivo (Frecuencia)': predCount,
-    };
-  });
+  const metricRows = [
+    {
+      label: 'Tiempo medio de respuesta',
+      traditional: `${format(trad.tiempo_promedio_respuesta)} min`,
+      predictive: `${format(pred.tiempo_promedio_respuesta)} min`,
+      delta: `${format(res.reduccion_tiempo_promedio_min)} min`,
+      positive: res.reduccion_tiempo_promedio_min >= 0,
+    },
+    {
+      label: 'P90 de respuesta',
+      traditional: `${format(trad.p90_respuesta)} min`,
+      predictive: `${format(pred.p90_respuesta)} min`,
+      delta: `${format(res.reduccion_p90_min ?? trad.p90_respuesta - pred.p90_respuesta)} min`,
+      positive: (res.reduccion_p90_min ?? trad.p90_respuesta - pred.p90_respuesta) >= 0,
+    },
+    {
+      label: 'Cumplimiento menor a 8 min',
+      traditional: `${format(trad.porcentaje_menor_8min)}%`,
+      predictive: `${format(pred.porcentaje_menor_8min)}%`,
+      delta: `${format(res.aumento_cumplimiento_8min_pct)} pp`,
+      positive: res.aumento_cumplimiento_8min_pct >= 0,
+    },
+    {
+      label: 'No finalizados al corte',
+      traditional: `${format(benchmark.replications?.[0]?.traditional.unfinished ?? 0, 0)}`,
+      predictive: `${format(benchmark.replications?.[0]?.predictive.unfinished ?? 0, 0)}`,
+      delta: `${format(res.reduccion_no_finalizados ?? 0, 1)}`,
+      positive: (res.reduccion_no_finalizados ?? 0) >= 0,
+    },
+  ];
 
   return (
     <div className="space-y-4" id="policy-comparison-view">
-      {/* Header & Scenario info */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="flex items-center space-x-3">
+      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-700">
             <GitCompare className="w-5 h-5" />
           </div>
           <div>
             <h3 className="font-bold text-slate-900 text-sm">
-              Comparación Científica Pareada: Tradicional vs Predictivo
+              {isHistorical ? 'Fase 8: experimento pareado NYC' : 'Benchmark pareado demo'}
             </h3>
             <p className="text-xs text-slate-500">
-              Evaluación rigurosa sobre los mismos incidentes sintéticos (Semilla: {benchmark.semilla}, Escenario: {benchmark.scenario})
+              {isHistorical
+                ? `${benchmark.experiment?.repetitions} replicas · ${benchmark.duracion_min} min · ${benchmark.num_ambulancias} ambulancias · ${benchmark.model_id}`
+                : `Semilla ${benchmark.semilla} · escenario ${benchmark.scenario}`}
             </p>
           </div>
         </div>
@@ -113,258 +112,147 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({
         <button
           onClick={onRerunBenchmark}
           disabled={isLoading}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
         >
-          <span>Re-ejecutar Benchmark</span>
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+          Re-ejecutar
         </button>
       </div>
 
-      {/* Comparative Key Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Metric 1: Mean Response Time */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-2">
-          <span className="text-xs text-slate-500 font-medium">Tiempo Promedio de Respuesta</span>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs text-slate-400">Tradicional</div>
-              <div className="text-lg font-bold text-slate-700">{trad.tiempo_promedio_respuesta.toFixed(1)} min</div>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400" />
-            <div>
-              <div className="text-xs text-indigo-600 font-bold">Predictivo</div>
-              <div className="text-xl font-extrabold text-indigo-700">{pred.tiempo_promedio_respuesta.toFixed(1)} min</div>
-            </div>
-          </div>
-          <div className="pt-1 text-[11px] text-emerald-600 font-semibold flex items-center space-x-1 border-t border-slate-100">
-            <TrendingDown className="w-3.5 h-3.5" />
-            <span>Reducción de {res.reduccion_tiempo_promedio_min} min ({((res.reduccion_tiempo_promedio_min / trad.tiempo_promedio_respuesta) * 100).toFixed(1)}%)</span>
-          </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <div className="bg-white p-4 rounded-lg border border-slate-200">
+          <span className="text-xs text-slate-500">Delta medio</span>
+          <p className={`mt-1 text-2xl font-bold ${res.reduccion_tiempo_promedio_min >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+            {format(res.reduccion_tiempo_promedio_min)} min
+          </p>
+          <p className="text-xs text-slate-500">Tradicional - predictivo</p>
         </div>
-
-        {/* Metric 2: Compliance < 8 min */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-2">
-          <span className="text-xs text-slate-500 font-medium">Cumplimiento Meta &lt; 8 Minutos</span>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs text-slate-400">Tradicional</div>
-              <div className="text-lg font-bold text-slate-700">{trad.porcentaje_menor_8min.toFixed(1)}%</div>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400" />
-            <div>
-              <div className="text-xs text-indigo-600 font-bold">Predictivo</div>
-              <div className="text-xl font-extrabold text-emerald-600">{pred.porcentaje_menor_8min.toFixed(1)}%</div>
-            </div>
-          </div>
-          <div className="pt-1 text-[11px] text-emerald-600 font-semibold flex items-center space-x-1 border-t border-slate-100">
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>Aumento de +{res.aumento_cumplimiento_8min_pct}% puntos porcentuales</span>
-          </div>
+        <div className="bg-white p-4 rounded-lg border border-slate-200">
+          <span className="text-xs text-slate-500">IC 95% bootstrap</span>
+          <p className="mt-1 text-xl font-bold text-slate-900">
+            [{format(ci.delta_tiempo_promedio.ci_lower)}, {format(ci.delta_tiempo_promedio.ci_upper)}]
+          </p>
+          <p className="text-xs text-slate-500">minutos</p>
         </div>
-
-        {/* Metric 3: Disparity Ratio (Equity) */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-2">
-          <span className="text-xs text-slate-500 font-medium">Razón de Disparidad (Equidad)</span>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs text-slate-400">Tradicional</div>
-              <div className="text-lg font-bold text-rose-600">{trad.razon_disparidad.toFixed(2)}</div>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400" />
-            <div>
-              <div className="text-xs text-indigo-600 font-bold">Predictivo</div>
-              <div className="text-xl font-extrabold text-indigo-700">{pred.razon_disparidad.toFixed(2)}</div>
-            </div>
-          </div>
-          <div className="pt-1 text-[11px] text-emerald-600 font-semibold flex items-center space-x-1 border-t border-slate-100">
-            <Scale className="w-3.5 h-3.5" />
-            <span>Mejora de equidad hacia 1.0 (Δ -{res.mejora_razon_disparidad.toFixed(2)})</span>
-          </div>
+        <div className="bg-white p-4 rounded-lg border border-slate-200">
+          <span className="text-xs text-slate-500">Prueba pareada</span>
+          <p className="mt-1 text-xl font-bold text-slate-900">p={format(benchmark.statistical_tests.t_test.p_value, 4)}</p>
+          <p className="text-xs text-slate-500">{benchmark.statistical_tests.t_test.significant_p05 ? 'Diferencia significativa' : 'No significativa'}</p>
         </div>
-
-        {/* Metric 4: Vulnerable Sector Q1 Time */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-2">
-          <span className="text-xs text-slate-500 font-medium">Tiempo Respuesta en Q1 (Más Vulnerable)</span>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs text-slate-400">Tradicional</div>
-              <div className="text-lg font-bold text-rose-600">{res.tiempo_promedio_q1_trad.toFixed(1)} min</div>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400" />
-            <div>
-              <div className="text-xs text-indigo-600 font-bold">Predictivo</div>
-              <div className="text-xl font-extrabold text-emerald-600">{res.tiempo_promedio_q1_pred.toFixed(1)} min</div>
-            </div>
-          </div>
-          <div className="pt-1 text-[11px] text-emerald-600 font-semibold flex items-center space-x-1 border-t border-slate-100">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Ahorro de {(res.tiempo_promedio_q1_trad - res.tiempo_promedio_q1_pred).toFixed(1)} min en comunidades vulnerables</span>
-          </div>
+        <div className="bg-white p-4 rounded-lg border border-slate-200">
+          <span className="text-xs text-slate-500">Pares de incidentes</span>
+          <p className="mt-1 text-2xl font-bold text-slate-900">
+            {format(benchmark.replications?.reduce((sum, rep) => sum + rep.paired_incidents, 0) || benchmark.traditional_run.incidents.length, 0)}
+          </p>
+          <p className="text-xs text-slate-500">usados como trazabilidad</p>
         </div>
       </div>
 
-      {/* Side-by-side Visual Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Chart 1: Mean Response Time by Quintile */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
-            <h4 className="font-bold text-xs text-slate-900">
-              Tiempo Promedio de Respuesta por Quintil Socioeconómico (Minutos)
-            </h4>
-            <span className="text-[10px] text-slate-400">Menor es mejor</span>
-          </div>
-
-          <div className="h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={responseTimeByQuintileData} margin={{ top: 10, right: 10, left: -15, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="quintil" tick={{ fontSize: 10, fill: '#64748b' }} />
-                <YAxis tick={{ fontSize: 10, fill: '#64748b' }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '11px' }}
-                />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                <Bar dataKey="Despacho Tradicional" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Despacho Predictivo" fill="#4f46e5" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      <div className="bg-white p-4 rounded-lg border border-slate-200">
+        <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
+          <h4 className="font-bold text-xs text-slate-900">Resumen de indicadores</h4>
+          <span className="text-[11px] text-slate-500">Delta positivo favorece predictivo</span>
         </div>
-
-        {/* Chart 2: Compliance < 8 min by Quintile */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
-            <h4 className="font-bold text-xs text-slate-900">
-              Porcentaje Atendido en Menos de 8 Minutos (% por Quintil)
-            </h4>
-            <span className="text-[10px] text-slate-400">Mayor es mejor</span>
-          </div>
-
-          <div className="h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={compliance8MinByQuintileData} margin={{ top: 10, right: 10, left: -15, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="quintil" tick={{ fontSize: 10, fill: '#64748b' }} />
-                <YAxis tick={{ fontSize: 10, fill: '#64748b' }} domain={[0, 100]} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '11px' }}
-                />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                <Bar dataKey="Despacho Tradicional" fill="#94a3b8" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Despacho Predictivo" fill="#10b981" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Response Time Histogram / Distribution */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
-          <h4 className="font-bold text-xs text-slate-900">
-            Distribución de Frecuencia de Tiempos de Respuesta (Histograma de Emergencias Atendidas)
-          </h4>
-          <span className="text-[10px] text-slate-400">Intervalos de tiempo</span>
-        </div>
-
-        <div className="h-[220px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={histogramData} margin={{ top: 10, right: 10, left: -15, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="rango" tick={{ fontSize: 10, fill: '#64748b' }} />
-              <YAxis tick={{ fontSize: 10, fill: '#64748b' }} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '11px' }}
-              />
-              <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-              <Bar dataKey="Tradicional (Frecuencia)" fill="#f87171" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Predictivo (Frecuencia)" fill="#6366f1" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Comprehensive Academic Results Table */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-        <h4 className="font-bold text-xs text-slate-900 border-b border-slate-100 pb-2 mb-3">
-          Tabla Resumen de Indicadores Clave de Desempeño y Equidad
-        </h4>
-
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-slate-600 font-semibold">
               <tr>
-                <th className="p-2.5">Métrica Operativa / Equidad</th>
-                <th className="p-2.5 text-center">Despacho Tradicional</th>
-                <th className="p-2.5 text-center">Despacho Predictivo</th>
-                <th className="p-2.5 text-center">Diferencia Absoluta</th>
-                <th className="p-2.5 text-right">Variación Porcentual</th>
+                <th className="p-2.5">Metrica</th>
+                <th className="p-2.5 text-center">Tradicional</th>
+                <th className="p-2.5 text-center">Predictivo</th>
+                <th className="p-2.5 text-right">Delta</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              <tr>
-                <td className="p-2.5 font-medium text-slate-800">Tiempo Promedio de Respuesta</td>
-                <td className="p-2.5 text-center font-mono">{trad.tiempo_promedio_respuesta.toFixed(2)} min</td>
-                <td className="p-2.5 text-center font-mono font-bold text-indigo-700">{pred.tiempo_promedio_respuesta.toFixed(2)} min</td>
-                <td className="p-2.5 text-center font-mono text-emerald-600 font-semibold">-{res.reduccion_tiempo_promedio_min} min</td>
-                <td className="p-2.5 text-right font-mono text-emerald-600 font-bold">
-                  -{((res.reduccion_tiempo_promedio_min / trad.tiempo_promedio_respuesta) * 100).toFixed(1)}%
-                </td>
-              </tr>
-              <tr>
-                <td className="p-2.5 font-medium text-slate-800">Mediana de Respuesta</td>
-                <td className="p-2.5 text-center font-mono">{trad.mediana_respuesta.toFixed(2)} min</td>
-                <td className="p-2.5 text-center font-mono font-bold text-indigo-700">{pred.mediana_respuesta.toFixed(2)} min</td>
-                <td className="p-2.5 text-center font-mono text-emerald-600 font-semibold">
-                  -{(trad.mediana_respuesta - pred.mediana_respuesta).toFixed(2)} min
-                </td>
-                <td className="p-2.5 text-right font-mono text-emerald-600 font-bold">
-                  -{(((trad.mediana_respuesta - pred.mediana_respuesta) / trad.mediana_respuesta) * 100).toFixed(1)}%
-                </td>
-              </tr>
-              <tr>
-                <td className="p-2.5 font-medium text-slate-800">Percentil 90 (P90)</td>
-                <td className="p-2.5 text-center font-mono">{trad.p90_respuesta.toFixed(2)} min</td>
-                <td className="p-2.5 text-center font-mono font-bold text-indigo-700">{pred.p90_respuesta.toFixed(2)} min</td>
-                <td className="p-2.5 text-center font-mono text-emerald-600 font-semibold">
-                  -{(trad.p90_respuesta - pred.p90_respuesta).toFixed(2)} min
-                </td>
-                <td className="p-2.5 text-right font-mono text-emerald-600 font-bold">
-                  -{(((trad.p90_respuesta - pred.p90_respuesta) / trad.p90_respuesta) * 100).toFixed(1)}%
-                </td>
-              </tr>
-              <tr>
-                <td className="p-2.5 font-medium text-slate-800">Cumplimiento &lt; 8 min (%)</td>
-                <td className="p-2.5 text-center font-mono">{trad.porcentaje_menor_8min.toFixed(1)}%</td>
-                <td className="p-2.5 text-center font-mono font-bold text-emerald-600">{pred.porcentaje_menor_8min.toFixed(1)}%</td>
-                <td className="p-2.5 text-center font-mono text-emerald-600 font-semibold">+{res.aumento_cumplimiento_8min_pct}%</td>
-                <td className="p-2.5 text-right font-mono text-emerald-600 font-bold">
-                  +{(((pred.porcentaje_menor_8min - trad.porcentaje_menor_8min) / trad.porcentaje_menor_8min) * 100).toFixed(1)}%
-                </td>
-              </tr>
-              <tr>
-                <td className="p-2.5 font-medium text-slate-800">Razón de Disparidad (Equidad)</td>
-                <td className="p-2.5 text-center font-mono text-rose-600">{trad.razon_disparidad.toFixed(3)}</td>
-                <td className="p-2.5 text-center font-mono font-bold text-indigo-700">{pred.razon_disparidad.toFixed(3)}</td>
-                <td className="p-2.5 text-center font-mono text-emerald-600 font-semibold">-{res.mejora_razon_disparidad.toFixed(3)}</td>
-                <td className="p-2.5 text-right font-mono text-emerald-600 font-bold">
-                  -{((res.mejora_razon_disparidad / trad.razon_disparidad) * 100).toFixed(1)}%
-                </td>
-              </tr>
-              <tr>
-                <td className="p-2.5 font-medium text-slate-800">Distancia Total Recorrida</td>
-                <td className="p-2.5 text-center font-mono">{trad.distancia_total_km.toFixed(1)} km</td>
-                <td className="p-2.5 text-center font-mono text-slate-700">{pred.distancia_total_km.toFixed(1)} km</td>
-                <td className="p-2.5 text-center font-mono text-slate-600">
-                  {(pred.distancia_total_km - trad.distancia_total_km).toFixed(1)} km
-                </td>
-                <td className="p-2.5 text-right font-mono text-slate-600">
-                  {(((pred.distancia_total_km - trad.distancia_total_km) / trad.distancia_total_km) * 100).toFixed(1)}%
-                </td>
-              </tr>
+              {metricRows.map((row) => (
+                <tr key={row.label}>
+                  <td className="p-2.5 font-medium text-slate-800">{row.label}</td>
+                  <td className="p-2.5 text-center font-mono">{row.traditional}</td>
+                  <td className="p-2.5 text-center font-mono font-semibold text-indigo-700">{row.predictive}</td>
+                  <td className={`p-2.5 text-right font-mono font-bold ${row.positive ? 'text-emerald-700' : 'text-rose-700'}`}>{row.delta}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {replicationData.length > 0 && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="bg-white p-4 rounded-lg border border-slate-200">
+            <div className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2">
+              <TrendingDown className="w-4 h-4 text-emerald-700" />
+              <h4 className="font-bold text-xs text-slate-900">Deltas por replica</h4>
+            </div>
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={replicationData} margin={{ top: 10, right: 20, left: -15, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="replica" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  <Line type="monotone" dataKey="Delta media" stroke="#059669" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="Delta P90" stroke="#4f46e5" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-lg border border-slate-200">
+            <div className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2">
+              <BarChart3 className="w-4 h-4 text-indigo-700" />
+              <h4 className="font-bold text-xs text-slate-900">Cumplimiento y pares</h4>
+            </div>
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={replicationData} margin={{ top: 10, right: 20, left: -15, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="replica" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  <Bar dataKey="Delta <8m" fill="#14b8a6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Pares" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white p-4 rounded-lg border border-slate-200">
+        <div className="mb-2 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-slate-600" />
+          <h4 className="text-sm font-semibold text-slate-900">Interpretacion</h4>
+        </div>
+        <p className="text-sm leading-6 text-slate-700">
+          {res.interpretacion ||
+            'La comparacion usa la misma demanda y semilla para ambas politicas. Una diferencia positiva en tiempo indica menor respuesta promedio con la politica predictiva.'}
+        </p>
+        {benchmark.limitations && (
+          <ul className="mt-3 space-y-1 text-xs text-slate-500">
+            {benchmark.limitations.map((item) => (
+              <li key={item} className="flex gap-2">
+                <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {benchmark.artifacts && (
+          <p className="mt-3 inline-flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1 text-xs text-slate-600">
+            <FileText className="h-3.5 w-3.5" />
+            Reporte exportado en {benchmark.artifacts.markdown}
+          </p>
+        )}
+      </div>
+
+      {!isHistorical && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Este resultado pertenece al modo demo. Para el articulo usa el experimento NYC de Fase 8.
+        </div>
+      )}
     </div>
   );
 };

@@ -85,6 +85,6 @@ EMS-020 definira items, dimensiones, seleccion/cantidad justificada de expertos,
 
 Versionar protocolo, configuracion, diccionario y mapeos. Una modificacion exige motivo, version, fecha y aclarar si se observaron resultados de prueba. Modelos, extracciones y resultados guardaran sus hashes y versiones efectivas. Los originales de datos quedan locales fuera de Git; los instrumentos y respuestas de participantes tienen almacenamiento separado.
 
-Pendientes con responsable tecnico: EMS-012/014 verifican codigos de banderas y zona horaria; EMS-015 valida geografia; EMS-017 sustenta mapeos, recursos y calibracion; EMS-019 cierra diseno de replicas antes de prueba; EMS-020/021 desarrollan y aplican instrumentos. La incertidumbre queda explicita y no bloquea la descarga piloto de fase 1.
+Completados con evidencia local: EMS-012/014 verifican codigos de banderas y zona horaria; EMS-015 valida geografia; EMS-017 sustenta mapeos, recursos y calibracion historica. Pendientes con responsable tecnico: EMS-019 cierra diseno de replicas antes de prueba; EMS-020/021 desarrollan y aplican instrumentos. La incertidumbre queda explicita y no bloquea la integracion posterior.
 
 Referencias metodologicas y del dataset: [fuentes del plan](PLAN_IMPLEMENTACION_NYC_EMS_2026.md#10-referencias-y-evidencia). Este protocolo concreta decisiones del proyecto; no constituye un registro externo ni una validacion empirica ya realizada.

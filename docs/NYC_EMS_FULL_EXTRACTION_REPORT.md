@@ -6,12 +6,12 @@ Estado de la descarga: completa y reconciliada. Ejecucion: 8 de septiembre de 20
 
 Snapshot completo: `20260909T040537085584Z-56d48fe7ce9b`.
 
-- [Manifiesto: conteos, hashes, paginas y sesiones](../backend/data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/manifest.json).
-- [Descubrimiento previo](../backend/data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/discovery.json) y [comprobacion posterior](../backend/data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/discovery_after.json).
-- [Configuracion congelada](../backend/data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/config.json).
-- [Diccionario archivado](../backend/data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/provenance/dictionary.csv), [campos](../backend/data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/provenance/fields.csv), [mapeos](../backend/data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/provenance/mappings.json) y [codigo ejecutado](../backend/data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/provenance/extractor.py).
+- [Manifiesto: conteos, hashes, paginas y sesiones](../data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/manifest.json).
+- [Descubrimiento previo](../data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/discovery.json) y [comprobacion posterior](../data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/discovery_after.json).
+- [Configuracion congelada](../data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/config.json).
+- [Diccionario archivado](../data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/provenance/dictionary.csv), [campos](../data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/provenance/fields.csv), [mapeos](../data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/provenance/mappings.json) y [codigo ejecutado](../data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/provenance/extractor.py).
 
-Los datos originales estan en `backend/data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/raw/`, separados por mes. Cada pagina es un array JSON comprimido con gzip. Los archivos existen localmente y estan excluidos de Git; respaldar el directorio completo para compartir esta version exacta con el equipo.
+Los datos originales estan en `data/nyc_ems/20260909T040537085584Z-56d48fe7ce9b/raw/`, separados por mes. Cada pagina es un array JSON comprimido con gzip. Los archivos existen localmente y estan excluidos de Git; respaldar el directorio completo para compartir esta version exacta con el equipo.
 
 ## Volumen real
 

@@ -1,33 +1,37 @@
-# ADR-001 - Backend canonico de Fase 1
+# ADR-001 - Backend canonico del proyecto
 
 ## Estado
 
-Aceptado.
+Actualizado.
 
 ## Decision
 
-Para la Fase 1 del proyecto, el backend canonico es `server.ts` con Node.js + Express.
+El backend canonico del proyecto es `backend/app/main.py` con Python/FastAPI.
 
-`backend/app/main.py` queda como backend experimental/de investigacion. No debe usarse como fuente principal de endpoints ni como ruta de ejecucion local hasta que exista un ticket explicito de migracion o separacion de responsabilidades.
+El frontend React se ejecuta con Vite y consume rutas relativas `/api`. En
+desarrollo, Vite redirige esas rutas hacia `http://localhost:8000`.
 
 ## Contexto
 
-- `npm run dev` ejecuta `tsx server.ts`.
-- `server.ts` sirve la API y el frontend Vite desde el mismo proceso en desarrollo.
-- `server.ts` ya expone endpoints para zonas, bases, ambulancias, hospitales, incidentes, simulaciones, predicciones, despacho, reubicacion, comparaciones e import/export.
-- La logica principal de simulacion, despacho, prediccion, estadistica y comparacion vive en TypeScript bajo `src/services`.
-- El backend FastAPI actual contiene endpoints incompletos y respuestas placeholder.
+- El proyecto requiere procesamiento de datos, limpieza, modelos, simulacion y
+  artefactos de investigacion, donde Python es el entorno principal solicitado.
+- `research/` ya contiene el pipeline de extraccion y sera la base para las
+  fases 3 en adelante.
+- Node queda restringido al frontend y herramientas de build; no contiene API de
+  negocio.
+- La data local se ubica en `data/`, separada del backend y del frontend.
 
 ## Consecuencias
 
-- Los nuevos endpoints de Fase 1 deben implementarse primero en `server.ts`.
-- Los contratos de API deben alinearse con los tipos de `src/types` y los motores de `src/services`.
-- El README y los scripts del proyecto deben apuntar a Node/Express como ruta principal.
-- FastAPI no se elimina todavia, pero queda fuera del flujo principal para evitar doble mantenimiento.
+- Nuevos endpoints deben implementarse en `backend/app/api/`.
+- La logica de negocio backend debe vivir en `backend/app/services/`.
+- El frontend mantiene su cliente HTTP en `src/services/apiClient.ts`.
+- `src/` no debe contener backend web.
+- `research/` produce artefactos que FastAPI consumira desde `data/`.
 
 ## Criterios de aceptacion cubiertos
 
 - Existe una decision documentada.
-- El comando principal de desarrollo apunta al backend elegido.
-- Los endpoints principales estan listados en README.
-- El backend secundario queda marcado como experimental.
+- El comando backend apunta a FastAPI.
+- Las rutas `/api/...` se mantienen para no romper el frontend.
+- No quedan dos backends de negocio compitiendo.

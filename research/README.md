@@ -9,7 +9,7 @@ La fase 0 (EMS-011) define configuracion, contrato y protocolo. La fase 1 agrega
 - [Resultado del piloto ejecutado y ubicacion de sus datos](../docs/NYC_EMS_PILOT_REPORT.md).
 - [Resultado del trimestre completo y version local para fase 3](../docs/NYC_EMS_FULL_EXTRACTION_REPORT.md). No concatenar el piloto con el trimestre: sus fechas se solapan.
 
-El extractor usa Python 3.12+ y solo su biblioteca estandar; no requiere `pip install`. Las dependencias de analisis se fijaran al implementarlas. Node/Express sigue sirviendo la app; FastAPI mantiene su estado experimental segun ADR-001.
+El extractor usa Python 3.12+ y solo su biblioteca estandar; no requiere `pip install`. Las dependencias de analisis se fijaran al implementarlas. FastAPI es el backend oficial segun ADR-001 y consumira los artefactos generados en `data/`.
 
 ## Comandos de fase 1
 
@@ -71,6 +71,71 @@ La evidencia `discovery.json` y `discovery_after.json` contiene esquema, metadat
 
 Si cambia la fuente durante una extraccion, el intento queda invalidado cuando se puede comparar la nueva evidencia y se conserva para auditoria. Un error de esquema tambien detiene el proceso. Ejecutar nuevamente sin `--snapshot` crea una version nueva; el sistema no borra ni reemplaza automaticamente versiones anteriores.
 
+## Comandos de fase 3
+
+```powershell
+# Perfilado, limpieza y cohortes sobre el snapshot completo ya descargado.
+python -m research.pipeline.nyc_ems phase3 --snapshot 20260909T040537085584Z-56d48fe7ce9b
+```
+
+Este comando no consulta Socrata. Verifica primero el snapshot local y genera:
+
+- `interim/quality_report.json`
+- `interim/inclusion_exclusion_report.json`
+- `interim/quarantine.csv`
+- `processed/incidents_clean.parquet`
+- `processed/demand_cohort.parquet`
+- `processed/response_cohort.parquet`
+- `processed/transport_cohort.parquet`
+- `processed/cohort_summary.json`
+
+## Comandos de fase 4
+
+```powershell
+# Panel zona-hora, features temporales, particiones y eventos historicos.
+python -m research.pipeline.nyc_ems phase4 --snapshot 20260909T040537085584Z-56d48fe7ce9b
+```
+
+Este comando requiere las salidas de fase 3 y genera:
+
+- `processed/hourly_demand_panel.parquet`
+- `processed/model_ready_hourly_demand_panel.parquet`
+- `processed/feature_dictionary.json`
+- `processed/temporal_partitions.json`
+- `processed/geography_summary.json`
+- `simulation/historical_incident_events.parquet`
+
+## Comandos de fase 5
+
+```powershell
+# Entrena baseline temporal, Random Forest y Gradient Boosting.
+python -m research.pipeline.nyc_ems phase5 --snapshot 20260909T040537085584Z-56d48fe7ce9b
+```
+
+Este comando requiere las salidas de fase 4 y genera:
+
+- `research/artifacts/nyc_ems/<snapshot_id>/phase5/models/*.joblib`
+- `research/artifacts/nyc_ems/<snapshot_id>/phase5/predictions/retrospective_forecasts.parquet`
+- `research/artifacts/nyc_ems/<snapshot_id>/phase5/reports/metrics.json`
+- `research/artifacts/nyc_ems/<snapshot_id>/phase5/reports/model_card.json`
+- `data/nyc_ems/<snapshot_id>/processed/retrospective_forecasts.parquet`
+
+## Comandos de fase 6
+
+```powershell
+# Paquete de reproduccion historica, tiempos observados y supuestos de escenario.
+python -m research.pipeline.nyc_ems phase6 --snapshot 20260909T040537085584Z-56d48fe7ce9b
+```
+
+Este comando requiere las salidas de fases 4 y 5 y genera:
+
+- `simulation/historical_replay_inputs.parquet`
+- `simulation/observed_time_components.parquet`
+- `simulation/calibration_parameters.json`
+- `simulation/nyc_scenario.json`
+- `simulation/resource_assumptions.json`
+- `simulation/phase6_manifest.json`
+
 ## Archivos del piloto
 
 Cada snapshot contiene `config.json`, `discovery.json`, `manifest.json` y paginas `raw/2026-04/page-*.json.gz`. Al terminar o pausar correctamente tambien guarda `discovery_after.json`. Las paginas son arrays JSON comprimidos, con los valores originales de las 26 columnas solicitadas; no se rellenan faltantes ni se filtra por validez.
@@ -82,10 +147,10 @@ El perfil de recursos registra segundos de descarga y ejecucion, bytes de respue
 Las salidas se resolveran desde la raiz del repositorio:
 
 ```text
-backend/data/nyc_ems/<snapshot_id>/raw/
-backend/data/nyc_ems/<snapshot_id>/interim/
-backend/data/nyc_ems/<snapshot_id>/processed/
-backend/data/nyc_ems/<snapshot_id>/simulation/
+data/nyc_ems/<snapshot_id>/raw/
+data/nyc_ems/<snapshot_id>/interim/
+data/nyc_ems/<snapshot_id>/processed/
+data/nyc_ems/<snapshot_id>/simulation/
 reports/nyc_ems/<snapshot_id>/
 research/artifacts/nyc_ems/<snapshot_id>/
 research/private/participants/

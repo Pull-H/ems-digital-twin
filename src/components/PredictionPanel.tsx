@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DemandPrediction, Zone } from '../types';
-import { Brain, CheckCircle, Flame, Layers, Sparkles, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Brain, Flame, Sparkles, TrendingUp } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -25,7 +25,7 @@ export const PredictionPanel: React.FC<PredictionPanelProps> = ({
   simMinute,
   onRetrainModel,
 }) => {
-  const [selectedHorizon, setSelectedHorizon] = useState<15 | 30 | 60>(15);
+  const [selectedHorizon, setSelectedHorizon] = useState<15 | 30 | 60>(60);
   const [riskFilter, setRiskFilter] = useState<'todos' | 'alto' | 'medio' | 'bajo'>('todos');
 
   const filteredPredictions = predictions.filter(
@@ -69,8 +69,9 @@ export const PredictionPanel: React.FC<PredictionPanelProps> = ({
               <button
                 key={h}
                 onClick={() => setSelectedHorizon(h)}
+                disabled={h !== 60}
                 className={`px-3 py-1 rounded-md transition-colors ${
-                  selectedHorizon === h ? 'bg-indigo-600 text-white shadow-xs' : 'hover:text-slate-900'
+                  selectedHorizon === h ? 'bg-indigo-600 text-white shadow-xs' : h !== 60 ? 'text-slate-400 cursor-not-allowed' : 'hover:text-slate-900'
                 }`}
               >
                 Horizonte {h} min
@@ -236,3 +237,4 @@ export const PredictionPanel: React.FC<PredictionPanelProps> = ({
     </div>
   );
 };
+

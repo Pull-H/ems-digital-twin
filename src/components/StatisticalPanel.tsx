@@ -27,10 +27,10 @@ export const StatisticalPanel: React.FC<StatisticalPanelProps> = ({ stats, total
         </div>
         <div>
           <h3 className="font-bold text-slate-900 text-sm">
-            Validación Estadística Inferencial & Bootstrap (N = {totalIncidentsCount} eventos pareados)
+            Validación Estadística Inferencial & Bootstrap (N = {totalIncidentsCount} unidades pareadas)
           </h3>
           <p className="text-xs text-slate-500">
-            Comprobación formal de hipótesis para respaldo de tesis, publicaciones y evaluación empírica
+            Analisis pareado de resultados simulados; no representa validacion operacional real
           </p>
         </div>
       </div>
@@ -195,13 +195,13 @@ export const StatisticalPanel: React.FC<StatisticalPanelProps> = ({ stats, total
           <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
             <span className="text-slate-500">Bondad de Ajuste (R²):</span>
             <span className="font-mono text-base font-bold text-indigo-700 block mt-0.5">{ml_evaluacion.r2}</span>
-            <span className="text-[10px] text-emerald-600 font-semibold">Varianza explicada 88.4%</span>
+            <span className="text-[10px] text-slate-500">Disponible si aplica al modelo evaluado</span>
           </div>
 
           <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-            <span className="text-slate-500">Algoritmo:</span>
-            <span className="font-semibold text-slate-900 block mt-0.5">XGBoost / Random Forest</span>
-            <span className="text-[10px] text-slate-500">Ensemble con regularización</span>
+            <span className="text-slate-500">Modelo:</span>
+            <span className="font-semibold text-slate-900 block mt-0.5">Artefacto Fase 5</span>
+            <span className="text-[10px] text-slate-500">Ver reporte de modelos</span>
           </div>
         </div>
       </div>

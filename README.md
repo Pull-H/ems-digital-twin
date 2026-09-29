@@ -1,69 +1,58 @@
 # EMS Digital Twin
 
-Gemelo digital para simular una red urbana de servicios medicos de emergencia, comparar politicas de despacho y analizar indicadores de equidad socioeconomica.
-
-## Estado del proyecto
-
-El proyecto ya tiene una primera fase de produccionizacion al 30%. El detalle esta en [docs/PRODUCTIONIZATION_TICKETS.md](docs/PRODUCTIONIZATION_TICKETS.md).
-
-Completado:
-
-- Backlog inicial y criterios de aceptacion.
-- Contrato de metricas unificado.
-- Frontend conectado a la API Node con fallback local.
-
-Pendiente principal:
-
-- Retirar duplicacion o definir futuro del backend FastAPI experimental.
-- Agregar persistencia y validacion fuerte de payloads.
-- Incorporar pruebas automatizadas y Dockerfile.
+Gemelo digital para simular una red urbana de servicios medicos de emergencia,
+comparar politicas de despacho y analizar indicadores de equidad.
 
 ## Arquitectura actual
 
-- `src/`: frontend React/Vite y motores TypeScript de simulacion, prediccion, despacho, estadistica y comparacion.
-- `server.ts`: backend canonico de Fase 1. Servidor Express que expone la API y sirve Vite en desarrollo o `dist` en produccion.
-- `backend/app/main.py`: backend FastAPI experimental con endpoints incompletos. No es la ruta principal de ejecucion.
-- `docs/`: tickets y notas de avance hacia implementacion.
+- `src/`: frontend React/Vite.
+- `backend/`: backend oficial Python/FastAPI.
+- `research/`: scripts de extraccion, limpieza, entrenamiento y experimentos.
+- `data/`: datos locales y artefactos generados, normalmente fuera de Git.
+- `docs/`: plan, articulo, contratos y reportes.
 
-La decision arquitectonica esta documentada en [docs/ADR-001_BACKEND_CANONICO.md](docs/ADR-001_BACKEND_CANONICO.md).
-El contrato de datos de simulacion esta documentado en [docs/SIMULATION_CONTRACT.md](docs/SIMULATION_CONTRACT.md).
+La decision arquitectonica esta documentada en
+[docs/ADR-001_BACKEND_CANONICO.md](docs/ADR-001_BACKEND_CANONICO.md).
 
 ## Ejecutar localmente
 
 Requisitos:
 
-- Node.js 20+ recomendado.
-- Dependencias instaladas con `npm install`.
+- Node.js 20+.
+- Python 3.12+ recomendado.
+- Dependencias frontend instaladas con `npm install`.
+- Dependencias backend instaladas con `pip install -r backend/requirements.txt`.
+- Dependencias de investigacion/ML instaladas con `pip install -r research/requirements.txt`.
 
-Comandos:
+Terminal 1:
 
 ```bash
-npm install
+npm run dev:backend
+```
+
+Terminal 2:
+
+```bash
 npm run dev
 ```
 
-La app queda disponible en `http://localhost:3000`.
+El frontend queda disponible en `http://localhost:5173`.
+La API queda disponible en `http://localhost:8000` y `http://localhost:8000/docs`.
 
 ## Scripts
 
 ```bash
-npm run dev      # Express + Vite middleware
-npm run build    # Build frontend + bundle del servidor
-npm run start    # Ejecuta dist/server.cjs
-npm run lint     # TypeScript sin emitir archivos
-npm run clean    # Limpieza cross-platform de dist/server.js
+npm run dev          # Frontend Vite con proxy /api -> FastAPI
+npm run dev:backend  # Backend FastAPI
+npm run build        # Build del frontend
+npm run start        # Preview del frontend construido
+npm run lint         # TypeScript sin emitir archivos
+npm run clean        # Limpia dist/
 ```
-
-## Variables
-
-Copiar `.env.example` a `.env.local` si se necesita configuracion local.
-
-- `PORT`: puerto del servidor Node. Por defecto `3000`.
-- `VITE_API_BASE_URL`: URL base de la API si el frontend se sirve separado. Vacio usa rutas relativas.
 
 ## API principal
 
-Backend canonico: `server.ts` en Node.js + Express.
+Backend canonico: `backend/app/main.py` en Python/FastAPI.
 
 - `GET /api/health`
 - `POST /api/simulations`
@@ -74,3 +63,4 @@ Backend canonico: `server.ts` en Node.js + Express.
 - `POST /api/dispatch/evaluate`
 - `POST /api/relocation/recommend`
 - `GET /api/data/export`
+- `POST /api/assistant/query`

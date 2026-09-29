@@ -1,22 +1,43 @@
-import React, { useState } from 'react';
-import { Incident, SimulationMetrics } from '../types';
-import { Download, Upload, Database, FileSpreadsheet, Search, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { HistoricalDatasetProfile, HistoricalDatasetSummary, Incident, SimulationMetrics } from '../types';
+import { Download, Upload, Database, FileSpreadsheet, Search, CheckCircle2, PlayCircle } from 'lucide-react';
+import { datasetApi } from '../services/apiClient';
 
 interface DataManagementProps {
   incidents: Incident[];
   metrics: SimulationMetrics;
+  datasetProfile: HistoricalDatasetProfile | null;
+  onLoadHistoricalDataset: (datasetId: string) => Promise<void>;
   onImportIncidents: (newIncidents: Incident[]) => void;
 }
 
 export const DataManagement: React.FC<DataManagementProps> = ({
   incidents,
   metrics,
+  datasetProfile,
+  onLoadHistoricalDataset,
   onImportIncidents,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterQuintile, setFilterQuintile] = useState<string>('todos');
   const [filterPriority, setFilterPriority] = useState<string>('todos');
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [datasets, setDatasets] = useState<HistoricalDatasetSummary[]>([]);
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string>('');
+  const [isLoadingHistorical, setIsLoadingHistorical] = useState(false);
+
+  useEffect(() => {
+    void datasetApi
+      .listDatasets()
+      .then((result) => {
+        setDatasets(result.datasets);
+        const ready = result.datasets.find((dataset) => dataset.historical_ready);
+        if (ready) setSelectedDatasetId(ready.id);
+      })
+      .catch((err) => {
+        console.warn('No se pudo listar datasets historicos:', err);
+      });
+  }, []);
 
   // Filter incidents for data table
   const filteredIncidents = incidents.filter((inc) => {
@@ -95,8 +116,8 @@ export const DataManagement: React.FC<DataManagementProps> = ({
       ['mediana_respuesta', metrics.mediana_respuesta.toFixed(2), 'minutos'],
       ['p90_respuesta', metrics.p90_respuesta.toFixed(2), 'minutos'],
       ['porcentaje_menor_8min', metrics.porcentaje_menor_8min.toFixed(1), '%'],
-      ['razon_disparidad_q1_q5', metrics.razon_disparidad.toFixed(3), 'ratio'],
-      ['diferencia_max_min_quintiles', metrics.diferencia_max_min_quintiles.toFixed(2), 'minutos'],
+      ['razon_disparidad_q1_q5', metrics.razon_disparidad?.toFixed(3) ?? 'no_disponible', 'ratio'],
+      ['diferencia_max_min_quintiles', metrics.diferencia_max_min_quintiles?.toFixed(2) ?? 'no_disponible', 'minutos'],
       ['distancia_total_km', metrics.distancia_total_km.toFixed(1), 'km'],
       ['utilizacion_ambulancias', (metrics.utilizacion_ambulancias * 100).toFixed(1), '%'],
     ];
@@ -170,6 +191,17 @@ export const DataManagement: React.FC<DataManagementProps> = ({
     reader.readAsText(file);
   };
 
+  const handleLoadHistorical = async () => {
+    if (!selectedDatasetId) return;
+    setIsLoadingHistorical(true);
+    try {
+      await onLoadHistoricalDataset(selectedDatasetId);
+      setImportStatus('Dataset historico cargado en el simulador.');
+    } finally {
+      setIsLoadingHistorical(false);
+    }
+  };
+
   return (
     <div className="space-y-4" id="data-management-view">
       {/* Top Banner & Export Action Buttons */}
@@ -181,7 +213,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({
           <div>
             <h3 className="font-bold text-slate-900 text-sm">Gestor de Datos, Registro de Llamadas & Exportación CSV</h3>
             <p className="text-xs text-slate-500">
-              Total de registros cargados: {incidents.length} llamadas ({metrics.incidentes_atendidos} atendidas)
+              {datasetProfile ? 'Muestra visible de la corrida simulada' : 'Registros cargados'}: {incidents.length} llamadas. Total de la corrida: {metrics.incidentes_totales}.
             </p>
           </div>
         </div>
@@ -207,12 +239,77 @@ export const DataManagement: React.FC<DataManagementProps> = ({
           <label className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold border border-indigo-200 cursor-pointer transition-colors">
             <Upload className="w-3.5 h-3.5" />
             <span>Importar CSV</span>
-            <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
+            <input type="file" accept=".csv" onChange={handleFileUpload} disabled={Boolean(datasetProfile)} className="hidden" />
           </label>
         </div>
       </div>
 
       {/* Import Status Alert */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
+              <Database className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-900 text-sm">Dataset historico NYC EMS</h4>
+              <p className="text-xs text-slate-500">
+                Snapshot preparado por fases 1-6 para reproduccion historica y predicciones retrospectivas.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <select
+              value={selectedDatasetId}
+              onChange={(event) => setSelectedDatasetId(event.target.value)}
+              className="bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800"
+            >
+              <option value="">Sin snapshot listo</option>
+              {datasets.map((dataset) => (
+                <option key={dataset.id} value={dataset.id} disabled={!dataset.historical_ready}>
+                  {dataset.id} {dataset.historical_ready ? '' : '(pendiente)'}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={handleLoadHistorical}
+              disabled={!selectedDatasetId || isLoadingHistorical}
+              className="flex items-center justify-center space-x-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 text-white text-xs font-semibold shadow-xs transition-colors"
+            >
+              <PlayCircle className="w-3.5 h-3.5" />
+              <span>{isLoadingHistorical ? 'Cargando...' : 'Cargar histórico'}</span>
+            </button>
+          </div>
+        </div>
+
+        {datasetProfile && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <span className="block text-slate-500">Incidentes</span>
+              <strong className="text-slate-900 text-lg">{datasetProfile.expected_rows.toLocaleString()}</strong>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <span className="block text-slate-500">Respuestas válidas</span>
+              <strong className="text-slate-900 text-lg">
+                {(datasetProfile.phase6.observed_response_rows || 0).toLocaleString()}
+              </strong>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <span className="block text-slate-500">Mediana respuesta</span>
+              <strong className="text-slate-900 text-lg">
+                {datasetProfile.calibration_global.response_min?.median?.toFixed(2) || '0.00'} min
+              </strong>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <span className="block text-slate-500">Modelo seleccionado</span>
+              <strong className="text-slate-900 text-sm">{datasetProfile.model_selection.best_model_id || 'N/D'}</strong>
+            </div>
+          </div>
+        )}
+      </div>
+
       {importStatus && (
         <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between text-xs text-indigo-900">
           <div className="flex items-center space-x-2">
@@ -246,6 +343,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({
               <span className="text-slate-500 font-medium">Quintil:</span>
               <select
                 value={filterQuintile}
+                disabled={Boolean(datasetProfile)}
                 onChange={(e) => setFilterQuintile(e.target.value)}
                 className="bg-slate-50 border border-slate-300 rounded p-1 text-xs"
               >
@@ -282,7 +380,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({
               <tr>
                 <th className="p-2.5">ID Llamada</th>
                 <th className="p-2.5">Hora (Min)</th>
-                <th className="p-2.5">Zona / Quintil</th>
+                <th className="p-2.5">{datasetProfile ? 'Zona' : 'Zona / Quintil'}</th>
                 <th className="p-2.5">Tipo de Emergencia</th>
                 <th className="p-2.5">Prioridad</th>
                 <th className="p-2.5">Estado</th>
@@ -315,7 +413,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({
                       <td className="p-2.5 font-mono text-slate-600">T+{inc.tiempo_llamada}m</td>
                       <td className="p-2.5">
                         <span className="font-semibold text-slate-800">Z-{inc.zona_id}</span>
-                        <span className="text-[10px] text-rose-600 font-bold ml-1.5">Q{inc.quintil_socioeconomico}</span>
+                        {!datasetProfile && <span className="text-[10px] text-rose-600 font-bold ml-1.5">Q{inc.quintil_socioeconomico}</span>}
                       </td>
                       <td className="p-2.5 text-slate-700">{inc.tipo}</td>
                       <td className="p-2.5">

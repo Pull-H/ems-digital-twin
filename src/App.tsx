@@ -9,13 +9,18 @@ import { StatisticalPanel } from './components/StatisticalPanel';
 import { DataManagement } from './components/DataManagement';
 import { PythonArchitectureViewer } from './components/PythonArchitectureViewer';
 import { AssistantPanel } from './components/AssistantPanel';
+import { HistoricalWorkspace } from './components/historical/HistoricalWorkspace';
+import { ModelPerformancePanel } from './components/historical/ModelPerformancePanel';
+import { CrispDmPanel } from './components/historical/CrispDmPanel';
 
 import {
   Ambulance,
+  CreateSimulationRequest,
   DemandPrediction,
   DispatchPolicy,
   DispatchWeights,
   EMSBase,
+  HistoricalDatasetProfile,
   Hospital,
   Incident,
   RelocationRecommendation,
@@ -26,7 +31,7 @@ import {
   StatisticalTestResult,
   Zone,
 } from './types';
-import { simulationApi } from './services/apiClient';
+import { datasetApi, simulationApi } from './services/apiClient';
 import { ZONES_DATA, EMS_BASES, HOSPITALS } from './services/cityData';
 import { EMSSimulationEngine } from './services/simulationEngine';
 import { ComparisonBenchmarkResult, runComparisonBenchmark } from './services/comparisonService';
@@ -58,8 +63,8 @@ export const App: React.FC = () => {
   // Live state
   const [simMinute, setSimMinute] = useState<number>(0);
   const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [zones] = useState<Zone[]>(ZONES_DATA);
-  const [bases] = useState<EMSBase[]>(EMS_BASES);
+  const [zones, setZones] = useState<Zone[]>(ZONES_DATA);
+  const [bases, setBases] = useState<EMSBase[]>(EMS_BASES);
   const [hospitals, setHospitals] = useState<Hospital[]>(HOSPITALS);
   const [ambulances, setAmbulances] = useState<Ambulance[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -69,6 +74,10 @@ export const App: React.FC = () => {
   const [eventLogs, setEventLogs] = useState<SimEventLog[]>([]);
   const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>('local');
   const [apiWarning, setApiWarning] = useState<string | null>(null);
+  const [datasetProfile, setDatasetProfile] = useState<HistoricalDatasetProfile | null>(null);
+  const [historicalState, setHistoricalState] = useState<SimulationState | null>(null);
+  const [historicalBusy, setHistoricalBusy] = useState(true);
+  const initializationStarted = useRef(false);
 
   // Selection state
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
@@ -79,7 +88,11 @@ export const App: React.FC = () => {
   const [isBenchmarkLoading, setIsBenchmarkLoading] = useState<boolean>(false);
 
   const applySimulationState = useCallback((state: SimulationState) => {
+    setHistoricalState(state.simulation ? state : null);
+    if (state.simulation?.status === 'finished') setIsRunning(false);
     setSimMinute(state.sim_minute);
+    setZones([...state.zones]);
+    setBases([...state.bases]);
     setAmbulances([...state.ambulances]);
     setIncidents([...state.incidents]);
     setHospitals([...state.hospitals]);
@@ -88,6 +101,67 @@ export const App: React.FC = () => {
     setRelocations([...state.relocation_recommendations]);
     setEventLogs([...state.event_logs]);
   }, []);
+
+  const handleLoadHistoricalDataset = useCallback(
+    async (datasetId: string, options: Partial<CreateSimulationRequest> = {}) => {
+      setIsRunning(false);
+      if (stepInFlightRef.current) {
+        setApiWarning('Espera a que termine el avance actual antes de crear otra corrida.');
+        return;
+      }
+      stepInFlightRef.current = true;
+      setHistoricalBusy(true);
+      try {
+        const profile = await datasetApi.getProfile(datasetId);
+        const visualFleetSize = options.num_ambulances ?? profile.resource_assumptions.recommended_starting_point?.fleet_size_proxy ?? 691;
+        const modelId = profile.model_selection.best_model_id || profile.available_models[0] || 'hist_gradient_boosting_v1';
+        const response = await simulationApi.createSimulation({
+          scenario: 'dia_normal',
+          policy,
+          num_ambulances: visualFleetSize,
+          seed,
+          duration_min: 720,
+          weights,
+          data_mode: 'historical',
+          dataset_id: datasetId,
+          model_id: modelId,
+          ...options,
+        });
+        engineRef.current = null;
+        setRuntimeMode('api');
+        setDatasetProfile(profile);
+        setNumAmbulances(visualFleetSize);
+        setScenario('dia_normal');
+        setPolicy(response.state.policy);
+        setSeed(response.state.seed);
+        setSelectedZone(null);
+        setSelectedAmbulance(null);
+        setBenchmarkResult(null);
+        setApiWarning(null);
+        applySimulationState(response.state);
+        setActiveTab('map');
+      } catch (err) {
+        setApiWarning(`No se pudo crear la corrida NYC: ${err instanceof Error ? err.message : 'error de conexion'}`);
+        console.warn('Historical dataset load failed:', err);
+      } finally {
+        stepInFlightRef.current = false;
+        setHistoricalBusy(false);
+      }
+    },
+    [applySimulationState, policy, seed, weights]
+  );
+
+  const createHistoricalRun = useCallback(async (options: Partial<CreateSimulationRequest> = {}) => {
+    if (!datasetProfile || !historicalState) return;
+    await handleLoadHistoricalDataset(datasetProfile.id, {
+      demand_source: historicalState.simulation!.demand_source,
+      policy: historicalState.policy, seed: historicalState.seed,
+      model_id: historicalState.model_id, num_ambulances: historicalState.ambulances.length,
+      start_minute: historicalState.start_minute,
+      duration_min: historicalState.total_duration_min - historicalState.start_minute!,
+      ...options,
+    });
+  }, [datasetProfile, historicalState, handleLoadHistoricalDataset]);
 
   // Sync state from engine
   const syncStateFromEngine = useCallback(() => {
@@ -159,22 +233,46 @@ export const App: React.FC = () => {
   const handleRunBenchmark = useCallback(async () => {
     setIsBenchmarkLoading(true);
     try {
-      const result = await simulationApi.runComparisonBenchmark(scenario, numAmbulances, seed, 720);
+      const result = await simulationApi.runComparisonBenchmark(
+        scenario,
+        datasetProfile ? historicalState?.ambulances.length || numAmbulances : numAmbulances,
+        historicalState?.seed ?? seed,
+        datasetProfile && historicalState ? historicalState.total_duration_min - (historicalState.start_minute ?? 0) : 720,
+        datasetProfile
+          ? {
+              datasetId: datasetProfile.id,
+              modelId: historicalState?.model_id || datasetProfile.model_selection.best_model_id,
+              startMinute: historicalState?.start_minute,
+              repetitions: 10,
+              demandSource: historicalState?.simulation?.demand_source || 'historical',
+            }
+          : {}
+      );
       setBenchmarkResult(result);
+      setApiWarning(null);
     } catch (err) {
-      const result = runComparisonBenchmark(scenario, numAmbulances, seed, 720, weights);
-      setBenchmarkResult(result);
-      setApiWarning('Benchmark ejecutado localmente porque la API no respondio.');
+      if (!datasetProfile) {
+        const result = runComparisonBenchmark(scenario, numAmbulances, seed, 720, weights);
+        setBenchmarkResult(result);
+        setApiWarning('Benchmark ejecutado localmente porque la API no respondio.');
+      } else {
+        setApiWarning(`No se pudo ejecutar el experimento NYC: ${err instanceof Error ? err.message : 'error de conexion'}`);
+      }
       console.warn('API benchmark unavailable, using local benchmark:', err);
     } finally {
       setIsBenchmarkLoading(false);
     }
-  }, [scenario, seed, numAmbulances, weights]);
+  }, [scenario, seed, numAmbulances, weights, datasetProfile, historicalState]);
 
   // Initial mount
   useEffect(() => {
-    void initEngine();
-    void handleRunBenchmark();
+    if (initializationStarted.current) return;
+    initializationStarted.current = true;
+    void datasetApi.listDatasets().then(async ({ datasets }) => {
+      const ready = datasets.find(d => d.historical_ready);
+      if (ready) await handleLoadHistoricalDataset(ready.id);
+      else { await initEngine(); setHistoricalBusy(false); setApiWarning('Modo demostracion: no hay un snapshot NYC preparado.'); }
+    }).catch(() => { setHistoricalBusy(false); setApiWarning('No se pudo conectar con FastAPI. Inicia el backend y recarga la pagina.'); });
   }, []);
 
   // Step simulation function
@@ -196,6 +294,11 @@ export const App: React.FC = () => {
         engineRef.current?.step(deltaMin);
         syncStateFromEngine();
       } catch (err) {
+        if (datasetProfile) {
+          setIsRunning(false);
+          setApiWarning('La corrida NYC se ha pausado por un error de conexion. No se ha sustituido por datos demo.');
+          return;
+        }
         setApiWarning('Se perdio conexion con la API; la simulacion continua en modo local.');
         initializeLocalEngine(scenario, policy, numAmbulances, seed, weights, simMinute);
         engineRef.current?.step(deltaMin);
@@ -205,20 +308,20 @@ export const App: React.FC = () => {
         stepInFlightRef.current = false;
       }
     },
-    [applySimulationState, initializeLocalEngine, numAmbulances, policy, runtimeMode, scenario, seed, simMinute, syncStateFromEngine, weights]
+    [applySimulationState, initializeLocalEngine, numAmbulances, policy, runtimeMode, scenario, seed, simMinute, syncStateFromEngine, weights, datasetProfile]
   );
 
   // Play/Pause ticker
   useEffect(() => {
     if (!isRunning) return;
 
-    const intervalMs = Math.max(100, Math.floor(1000 / speedMultiplier));
+    const intervalMs = datasetProfile ? 1000 : Math.max(100, Math.floor(1000 / speedMultiplier));
     const timer = setInterval(() => {
-      void handleStep(1);
+      void handleStep(datasetProfile ? speedMultiplier : 1);
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [isRunning, speedMultiplier, handleStep]);
+  }, [isRunning, speedMultiplier, handleStep, datasetProfile]);
 
   // Handler for scenario change
   const handleChangeScenario = (newScenario: SimulationScenario) => {
@@ -257,12 +360,14 @@ export const App: React.FC = () => {
 
   // Reset simulation
   const handleReset = () => {
+    if (datasetProfile) { void createHistoricalRun(); return; }
     void initEngine();
   };
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans flex flex-col" id="ems-app-root">
       <Navbar
+        historicalClock={historicalState?.simulation?.clock}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         simMinute={simMinute}
@@ -280,12 +385,12 @@ export const App: React.FC = () => {
       {/* Main Content Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5">
         {/* Live Top KPI Banner */}
-        <LiveKPIHeader
+        {!datasetProfile && !historicalBusy && <LiveKPIHeader
           metrics={metrics}
           ambulances={ambulances}
           hospitals={hospitals}
           incidents={incidents}
-        />
+        />}
 
         {apiWarning && (
           <div className="mb-4 flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -299,7 +404,37 @@ export const App: React.FC = () => {
         )}
 
         {/* Tab Content Routing */}
-        {activeTab === 'map' && (
+        {historicalBusy && <p role="status" className="text-sm py-3">Preparando corrida NYC...</p>}
+        {historicalState && datasetProfile && ['map', 'simulation'].includes(activeTab) && (
+          <HistoricalWorkspace
+            key={`${historicalState.dataset_id}-${historicalState.start_minute}-${historicalState.seed}-${historicalState.simulation!.demand_source}-${historicalState.policy}-${historicalState.ambulances.length}-${historicalState.model_id}-${historicalState.total_duration_min}`}
+            state={historicalState} profile={datasetProfile} running={isRunning} busy={historicalBusy}
+            speed={speedMultiplier} onSpeed={setSpeedMultiplier} onToggle={() => setIsRunning(v => !v)}
+            onStep={handleStep} onCreate={createHistoricalRun}
+          />
+        )}
+        {historicalState && datasetProfile && activeTab === 'prediction' && (
+          <ModelPerformancePanel profile={datasetProfile} state={historicalState} />
+        )}
+        {datasetProfile && activeTab === 'comparison' && (
+          <ComparisonView
+            benchmark={benchmarkResult}
+            onRerunBenchmark={handleRunBenchmark}
+            isLoading={isBenchmarkLoading}
+          />
+        )}
+
+        {datasetProfile && activeTab === 'stats' && (
+          <StatisticalPanel
+            stats={benchmarkResult?.statistical_tests || null}
+            totalIncidentsCount={benchmarkResult?.replications?.length || 0}
+          />
+        )}
+
+        {datasetProfile && activeTab === 'crispdm' && (
+          <CrispDmPanel profile={datasetProfile} />
+        )}
+        {!datasetProfile && !historicalBusy && activeTab === 'map' && (
           <div className="space-y-4">
             <MapView
               zones={zones}
@@ -348,7 +483,7 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'simulation' && (
+        {!datasetProfile && activeTab === 'simulation' && (
           <SimulationControls
             isRunning={isRunning}
             onTogglePlay={() => setIsRunning((current) => !current)}
@@ -380,7 +515,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {activeTab === 'prediction' && (
+        {!datasetProfile && activeTab === 'prediction' && (
           <PredictionPanel
             predictions={predictions}
             zones={zones}
@@ -391,7 +526,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {activeTab === 'comparison' && (
+        {!datasetProfile && activeTab === 'comparison' && (
           <ComparisonView
             benchmark={benchmarkResult}
             onRerunBenchmark={handleRunBenchmark}
@@ -399,17 +534,25 @@ export const App: React.FC = () => {
           />
         )}
 
-        {activeTab === 'stats' && (
+        {!datasetProfile && activeTab === 'stats' && (
           <StatisticalPanel
             stats={benchmarkResult?.statistical_tests || null}
             totalIncidentsCount={benchmarkResult?.traditional_run.incidents.length || 0}
           />
         )}
 
+        {!datasetProfile && activeTab === 'crispdm' && (
+          <section className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-700">
+            La metodología CRISP-DM completa está disponible al cargar el dataset histórico NYC EMS.
+          </section>
+        )}
+
         {activeTab === 'data' && (
           <DataManagement
             incidents={incidents}
             metrics={metrics}
+            datasetProfile={datasetProfile}
+            onLoadHistoricalDataset={handleLoadHistoricalDataset}
             onImportIncidents={(newIncidents) => {
               setIncidents((prev) => [...newIncidents, ...prev]);
             }}
@@ -423,7 +566,7 @@ export const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-3 text-center text-xs text-slate-500">
-        EMS Digital Twin Prototype &bull; Simulación Estocástica, Machine Learning & Equidad Socioeconómica
+        {datasetProfile ? 'NYC EMS · Simulacion por zonas con datos historicos y recursos asumidos' : 'EMS Digital Twin · Demostracion academica'}
       </footer>
     </div>
   );

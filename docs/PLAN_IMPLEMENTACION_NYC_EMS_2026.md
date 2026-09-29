@@ -1,6 +1,6 @@
 # Plan por fases: datos historicos NYC EMS, simulacion y articulo
 
-Fecha de consulta: 2026-09-08. Estado: fases 0, 1 y 2 completadas (EMS-011 a EMS-013); base visual/documental del asistente LangGraph implementada como preparacion; fases 3-9 pendientes. [Resultado del piloto](NYC_EMS_PILOT_REPORT.md) y [extraccion trimestral y evidencia local](NYC_EMS_FULL_EXTRACTION_REPORT.md).
+Fecha de consulta: 2026-09-08. Estado actualizado: fases 0, 1, 2, 3, 4, 5, 6, 7, 7B y 8 completadas como base funcional de investigacion (EMS-011 a EMS-019), mas mini fases EMS-019B/EMS-019C de visualizacion predictiva; fase 9 pendiente. [Resultado del piloto](NYC_EMS_PILOT_REPORT.md), [extraccion trimestral y evidencia local](NYC_EMS_FULL_EXTRACTION_REPORT.md), [perfilado/limpieza/cohortes](NYC_EMS_PHASE3_QUALITY_REPORT.md), [geografia/features/particiones](NYC_EMS_PHASE4_FEATURES_REPORT.md), [comparacion de modelos](NYC_EMS_PHASE5_MODEL_REPORT.md), [visualizacion de modelos](NYC_EMS_MODEL_PERFORMANCE_VISUALS.md), [panel visual de modelos](NYC_EMS_MODEL_PERFORMANCE_PANEL.md), [calibracion/reproduccion historica](NYC_EMS_PHASE6_SIMULATION_CALIBRATION_REPORT.md), [integracion API/frontend](NYC_EMS_PHASE7_API_FRONTEND_REPORT.md) y [experimentos pareados](NYC_EMS_PHASE8_EXPERIMENTS.md).
 
 ## 1. Objetivo y alcance
 
@@ -45,14 +45,14 @@ El [catalogo NYC](https://catalog.data.gov/dataset/ems-incident-dispatch-data) e
 
 Hallazgos del codigo que se deben atender:
 
-- `server.ts`: `/api/data/import` separa CSV por comas, asigna coordenadas de Trujillo por defecto y devuelve un conteo/muestra sin integrar los incidentes a la cola del motor.
+- `backend/app/api/data_io.py`: `/api/data/import` es una base de importacion; debe evolucionar hacia validacion robusta, trazabilidad de errores y conexion real con cohortes limpias.
 - `src/services/simulationEngine.ts`: el constructor genera incidentes sinteticos; necesita recibir un conjunto historico y su configuracion espacial.
 - `src/services/predictionEngine.ts`: las predicciones llamadas ML se calculan mediante formulas y multiplicadores; falta entrenamiento y evaluacion historica.
 - `src/services/cityData.ts` y `dispatchEngine.ts`: la geografia y los recursos iniciales estan acoplados al prototipo; deben poder cargarse desde un escenario NYC.
 - `src/types/index.ts`: varios campos obligatorios, como quintil, coordenadas y hospital, requieren distinguir evidencia, aproximaciones y datos no disponibles.
 - `src/services/statsEngine.ts`: el bootstrap usa `Math.random()`; los experimentos reproducibles necesitan aleatoriedad controlada y pruebas estadisticas verificadas.
 
-Se conserva la decision de `ADR-001_BACKEND_CANONICO.md`: **Node/Express sirve la aplicacion**. Propuesta para analisis: scripts Python fuera del servidor, con pandas, PyArrow y scikit-learn, dependencias fijadas en un archivo propio. Exportaran artefactos para Node; esto no activa el backend FastAPI experimental.
+Se actualiza la decision de `ADR-001_BACKEND_CANONICO.md`: **FastAPI es el backend oficial**. El frontend React/Vite consume `/api` mediante proxy en desarrollo. Los scripts de `research/`, con pandas, PyArrow y scikit-learn cuando corresponda, exportaran artefactos a `data/` para ser consumidos por FastAPI.
 
 ## 4. Fases y criterios de salida
 
@@ -107,7 +107,7 @@ Reglas iniciales:
 7. Crear una cohorte de **respuesta** con banderas oficiales validas y tiempos coherentes. No imputar el tiempo objetivo ni excluir incidentes de demanda solo por carecer de respuesta valida.
 8. Mantener cohortes de transporte y eventos especiales separadas. Una hora hospitalaria faltante no demuestra que no hubo traslado. Registrar eventos censurados al cierre del periodo.
 
-**Entregables:** `incidents_clean.parquet`, `quality_report.json`, tabla de cuarentena y diagrama de inclusiones/exclusiones por motivo y zona.
+**Entregables implementados:** `incidents_clean.parquet`, `demand_cohort.parquet`, `response_cohort.parquet`, `transport_cohort.parquet`, `quality_report.json`, `quarantine.csv`, `cohort_summary.json` e `inclusion_exclusion_report.json`. Resumen en [reporte de Fase 3](NYC_EMS_PHASE3_QUALITY_REPORT.md).
 
 **Criterio de salida:** el conteo inicial se reconcilia con conservados, duplicados y cuarentena; las cohortes son reproducibles y sus exclusiones no se cuentan dos veces. Pruebas con nulos, comillas CSV, duplicados conflictivos y marcas de tiempo invalidas.
 
@@ -123,21 +123,21 @@ Objetivo inicial: numero de llamadas en la siguiente hora por zona. No usar tipo
 
 Particion propuesta: entrenamiento del 1 de abril al 15 de mayo; validacion del 16 al 31 de mayo; prueba final del 1 al 30 de junio. Cortes a medianoche local, con intervalos exclusivos. Ajustar transformaciones solo con entrenamiento y mantener junio cerrado hasta congelar decisiones. Eliminar de cada particion etiquetas cuyo horizonte cruce su frontera. Las primeras 168 horas pueden usarse como calentamiento para los rezagos semanales.
 
-**Entregables:** panel zona-hora, mapeos geograficos, diccionario de variables y manifiesto de particiones.
+**Entregables implementados:** `hourly_demand_panel.parquet`, `model_ready_hourly_demand_panel.parquet`, `feature_dictionary.json`, `temporal_partitions.json`, `geography_summary.json` y `historical_incident_events.parquet`. Resumen en [reporte de Fase 4](NYC_EMS_PHASE4_FEATURES_REPORT.md).
 
 **Criterio de salida:** suma de conteos consistente con la cohorte elegida, ninguna variable usa futuro y geografia NYC independiente de los valores sinteticos de Trujillo.
 
 ### Fase 5. Baselines y entrenamiento
 
-Comparar persistencia semanal y promedio historico por zona/dia/hora con un primer modelo sencillo de conteos, por ejemplo regresion de Poisson. Explorar un modelo de arboles solo si el baseline, el volumen y la validacion lo justifican. Configurar semillas y guardar versiones/dependencias.
+Comparar tres modelos reproducibles: baseline temporal por zona/dia/hora, Random Forest y Gradient Boosting. Configurar semillas y guardar versiones/dependencias.
 
 Evaluar MAE y RMSE globales y por zona, mas WAPE cuando su denominador sea distinto de cero. Evitar MAPE en series con ceros. Evaluar en origen movil: en cada hora solo se incorporan observaciones previas; el esquema de actualizacion debe ser igual para todos los modelos. Registrar desempeno por hora y zona, no solamente una media favorable.
 
 El primer producto usa horizonte de 60 minutos. El contrato actual tambien contempla 15 y 30: ocultarlos/deshabilitarlos en modo historico hasta entrenarlos y validarlos, sin presentarlos como resultados obtenidos dividiendo mecanicamente el pronostico horario.
 
-Para integrar sin otro servidor, exportar inicialmente una tabla de pronosticos retrospectivos con `issued_at`, `target_start`, `target_end`, `zone_id`, `prediction`, `model_id` y fecha limite del entrenamiento. Node consumira el pronostico correspondiente al reloj simulado. La inferencia en vivo sera una ampliacion posterior.
+Exportar inicialmente una tabla de pronosticos retrospectivos con `issued_at`, `target_start`, `target_end`, `zone_id`, `prediction`, `model_id` y fecha limite del entrenamiento. FastAPI consumira el pronostico correspondiente al reloj simulado. La inferencia en vivo sera una ampliacion posterior.
 
-**Entregables:** modelo, model card, predicciones baseline/modelo y reporte temporal. Mantener el baseline si el modelo mas complejo no mejora.
+**Entregables implementados:** modelos `joblib`, `retrospective_forecasts.parquet`, `metrics.json`, `model_card.json` y copia de predicciones en `data/.../processed` para integracion posterior. Resumen en [reporte de Fase 5](NYC_EMS_PHASE5_MODEL_REPORT.md).
 
 **Criterio de salida:** resultados reproducibles sobre la misma prueba final, sin valores ML ficticios y con disponibilidad temporal comprobada para cada pronostico.
 
@@ -153,13 +153,13 @@ Para evaluar reubicacion hacen falta ubicacion/cantidad de unidades, tiempos ent
 
 No sumar una respuesta historica completa a una espera de cola generada por el simulador: duplicaria componentes. Separar espera de asignacion, activacion/viaje, escena, traslado y disponibilidad. El cierre del incidente no equivale a liberacion de ambulancia; usarlo solo como proxy explicitamente identificado si se justifica, con sensibilidad.
 
-**Entregables:** paquete de escenario NYC, entradas historicas, parametros calibrados, registro de supuestos y reporte de ajuste.
+**Entregables implementados:** `historical_replay_inputs.parquet`, `observed_time_components.parquet`, `calibration_parameters.json`, `nyc_scenario.json`, `resource_assumptions.json` y `phase6_manifest.json`. Resumen en [reporte de Fase 6](NYC_EMS_PHASE6_SIMULATION_CALIBRATION_REPORT.md).
 
 **Criterio de salida:** cola historica real, tiempos coherentes, trazabilidad de parametros y pruebas de colas, recursos y conversion segundos/minutos. La aptitud para comparar politicas queda condicionada al ajuste y la sensibilidad; ajustar unas medias no demuestra reconstruccion exacta de FDNY.
 
 ### Fase 7. Integracion API y frontend
 
-Extender las rutas existentes de `server.ts`, preservando `/api/simulations`. Propuesta: catalogo/perfil mediante `/api/datasets` y `/api/datasets/:id/profile`; agregar a creacion de simulacion `dataset_id`, ventana, `data_mode`, `model_id` y version del escenario. Validar que pertenecen al mismo periodo/geografia.
+Extender las rutas existentes de FastAPI, preservando `/api/simulations`. Propuesta: catalogo/perfil mediante `/api/datasets` y `/api/datasets/:id/profile`; agregar a creacion de simulacion `dataset_id`, ventana, `data_mode`, `model_id` y version del escenario. Validar que pertenecen al mismo periodo/geografia.
 
 Guardar dataset, corrida, parametros, resultados y procedencia con la persistencia de EMS-005. Cargar paginas de datos desde disco/almacenamiento; la extraccion no debe ejecutarse dentro de una peticion web larga ni enviar todo el trimestre al navegador.
 
@@ -167,17 +167,35 @@ Guardar dataset, corrida, parametros, resultados y procedencia con la persistenc
 
 Extender tipos y `SIMULATION_CONTRACT.md` para valores no disponibles y procedencia. Si faltan quintiles, no rellenarlos con los del prototipo; adaptar calculo y visualizacion de metricas. Si no hay evidencia de hospital destino, mantener destino observado como desconocido y cualquier hospital simulado como parametro del escenario.
 
-**Entregables:** flujo dataset -> corrida persistida -> comparacion -> exportacion y prueba de integracion.
+**Entregables implementados:** `/api/datasets`, perfil de snapshot, modo `data_mode: "historical"` en `/api/simulations`, predicciones retrospectivas en `/api/predictions`, carga de snapshot desde `DataManagement`, persistencia local de corridas en `data/runtime`, endpoints de corridas recientes/activa/restauracion y reporte en [Fase 7](NYC_EMS_PHASE7_API_FRONTEND_REPORT.md).
 
 **Criterio de salida:** reiniciar y recuperar una corrida; reproducirla con sus versiones; verificar que los incidentes importados alimentan el motor y que ningun resultado sintetico se presenta como historico.
 
+### Cierre operativo de fases 6-7. Motor e integracion visual
+
+Implementado: motor SimPy de cola/despacho/escena/traslado/liberacion, entradas historica
+y pronosticada, semillas reproducibles y tiempos muestreados solo del entrenamiento.
+Frontend NYC con limites DCP, controles de corrida y vistas 2D/3D sincronizadas.
+La flota no se recorta por visualizacion; no hay fallback silencioso de NYC al demo.
+Los indicadores observados y simulados estan separados y no se muestran quintiles inventados.
+
+Detalle, supuestos y pruebas: [motor e integracion visual](NYC_EMS_ENGINE_VISUAL_INTEGRATION.md).
+Implementado tambien: persistencia local de `run_id`, parametros, ultimo estado y resumen
+de metricas en `data/runtime`. La API expone listado de corridas recientes, corrida
+activa y restauracion de la ultima corrida. La recuperacion reconstruye el motor desde
+parametros y lo avanza hasta el reloj persistido, por lo que conserva reproducibilidad
+sin serializar objetos internos de SimPy.
+
+Limite vigente: la persistencia es local y ligera, no multiusuario ni transaccional.
+La validacion experimental pareada se desarrolla en fase 8.
+
 ### Fase 7B. Asistente analitico LangGraph
 
-Agregar un modulo de interpretacion asistida para consultas sobre estado del proyecto, dataset, metodologia, limites y resultados cuando existan. En la etapa actual funciona como asistente documental: clasifica preguntas, consulta documentos locales del proyecto, muestra evidencia usada y bloquea respuestas sobre prediccion, simulacion calibrada o comparaciones finales mientras esas fases no existan.
+Agregar un modulo de interpretacion asistida para consultas sobre estado del proyecto, dataset, metodologia, limites y resultados disponibles. En la etapa actual funciona como asistente analitico determinista con LangGraph: clasifica preguntas, consulta documentos locales, lee artefactos de modelos, revisa la corrida activa o persistida y muestra evidencia usada.
 
-La conexion fuerte se realizara despues de la fase 7. En ese momento el grafo incorporara herramientas para consultar modelos, corridas, metricas, reportes y configuraciones congeladas. El asistente no debe recomendar politicas ni concluir mejoras si no hay resultados reproducibles disponibles.
+El grafo incorpora herramientas internas para consultar modelos, corridas, metricas, reportes y configuraciones congeladas. El asistente no recomienda politicas ni concluye mejoras si no hay resultados reproducibles disponibles; las comparaciones formales se leen desde Fase 8.
 
-**Entregables implementados:** pestana `Asistente EMS`, endpoint `/api/assistant/query`, grafo LangGraph determinista y trazabilidad basica de nodos/evidencia.
+**Entregables implementados:** pestana `Asistente EMS`, endpoint `/api/assistant/query`, grafo LangGraph determinista, trazabilidad de nodos/evidencia, lectura de `metrics.json`, interpretacion de la corrida activa/persistida y separacion explicita entre resultados disponibles y comparacion experimental pendiente.
 
 **Criterio de salida final:** responde con datos del sistema persistido, cita artefactos usados, reconoce capacidades no disponibles y no inventa metricas, zonas prioritarias ni conclusiones del articulo.
 
@@ -191,9 +209,27 @@ Comenzar con 30 replicas pareadas como presupuesto piloto y ajustar cantidad seg
 
 Incluir calentamiento, cola pendiente al final y periodo de vaciado consistente. Reportar incidentes sin atender y denominadores para evitar que una politica parezca mejor por completar solo los casos faciles. Ejecutar sensibilidad a flota, tiempos entre zonas y liberacion de recursos.
 
-**Entregables:** configuraciones de experimentos, resultados por corrida, IC del 95%, tamanos de efecto, figuras/tablas y limitaciones. Pruebas estadisticas con librerias verificadas y datos de referencia; no confiar en aproximaciones existentes sin validarlas.
+**Entregables implementados:** endpoint historico en `/api/comparisons`, `POST /api/comparisons/historical`, ejecucion pareada tradicional vs predictivo, replicas con semillas controladas, deltas por replica, prueba t pareada, Wilcoxon aproximado, bootstrap percentil al 95 %, exportacion JSON/Markdown a `reports/nyc_ems/<snapshot>/phase8/` e integracion en la pestana `Experimentos`. Resumen tecnico en [reporte de Fase 8](NYC_EMS_PHASE8_EXPERIMENTS.md).
 
-**Criterio de salida:** otra persona reproduce las tablas desde los artefactos congelados. La conclusion describe resultados de simulacion del trimestre estudiado, sin atribuir efectos clinicos ni mejoras observadas en operaciones reales.
+**Criterio de salida:** otra persona reproduce las tablas desde los artefactos congelados. La conclusion describe resultados de simulacion del trimestre estudiado, sin atribuir efectos clinicos ni mejoras observadas en operaciones reales. Antes del articulo final se debe congelar el presupuesto definitivo de replicas, flota y sensibilidad.
+
+### Mini fase EMS-019B. Visualizacion de rendimiento predictivo
+
+Generar graficos y tablas exportables para el articulo a partir de Fase 5: barras
+globales por modelo, matriz modelo-metrica, errores por borough y serie temporal
+real vs predicha para el modelo seleccionado.
+
+**Entregables implementados:** `research/visualization/model_performance.py`, tablas CSV y figuras SVG en `reports/nyc_ems/<snapshot>/model_performance/`, y guia en [visualizacion de modelos](NYC_EMS_MODEL_PERFORMANCE_VISUALS.md).
+
+**Criterio de salida:** el reporte se regenera con un comando, no usa datos simulados y distingue entre seleccion por validacion y mejor desempeno final en prueba.
+
+### Mini fase EMS-019C. Panel visual de rendimiento predictivo
+
+Mostrar dentro de la aplicacion los graficos y tablas generados en EMS-019B.
+
+**Entregables implementados:** endpoint `GET /api/model-performance`, componente `ModelPerformancePanel` y vista integrada en la pestana `Prediccion de Demanda` cuando el snapshot NYC esta activo. Guia en [panel visual de modelos](NYC_EMS_MODEL_PERFORMANCE_PANEL.md).
+
+**Criterio de salida:** el usuario puede ver dentro de la app la matriz modelo-metrica, barras globales, MAE por borough, serie real vs predicha, tabla global y pronostico activo.
 
 ### Fase 9. Instrumentos: Aiken, Cronbach y Kuder-Richardson
 
@@ -259,7 +295,7 @@ research/
   models/                      # train, evaluate, export
   experiments/                 # calibracion y comparaciones
   instruments/                 # instrumentos y scripts psicometricos
-backend/data/nyc_ems/<version>/
+data/nyc_ems/<version>/
   manifest.json
   raw/2026-04/                 # paginas .json.gz; tambien mayo y junio
   interim/                     # tablas normalizadas y cuarentena
@@ -268,26 +304,28 @@ backend/data/nyc_ems/<version>/
 reports/nyc_ems/<version>/      # calidad, modelos, experimentos y figuras
 ```
 
-Parquet comprimido sera el formato analitico; JSON/CSV acotado sera el intercambio con Node y el articulo. Evitar duplicar el trimestre completo en varios CSV o cargarlo en React. Mantener en memoria una pagina de extraccion o una particion de procesamiento. Entrenar sobre la tabla agregada: cinco boroughs x 91 dias x 24 horas equivalen a 10920 celdas antes de excluir faltantes, frente a 405998 incidentes crudos.
+Parquet comprimido sera el formato analitico; JSON/CSV acotado sera el intercambio con FastAPI y el articulo. Evitar duplicar el trimestre completo en varios CSV o cargarlo en React. Mantener en memoria una pagina de extraccion o una particion de procesamiento. Entrenar sobre la tabla agregada: cinco boroughs x 91 dias x 24 horas equivalen a 10920 celdas antes de excluir faltantes, frente a 405998 incidentes crudos.
 
 Guardar datos y modelos grandes fuera de Git, con almacenamiento respaldado y acceso del equipo. Versionar configuraciones, mapeos, manifiestos sin secretos y una muestra pequena de prueba. Las respuestas de participantes se almacenaran aparte de los incidentes publicos y con acceso apropiado al protocolo del estudio.
 
 ## 8. Tickets propuestos para Jira
 
-Numeracion nueva a partir de EMS-011; **EMS-011 a EMS-013 completados**, incluido el trimestre descargado y versionado. EMS-014 a EMS-022 siguen pendientes; EMS-018A queda iniciado con base visual/documental y conexion final pendiente. Las dependencias EMS-005/006/007/008 ya figuran en `PRODUCTIONIZATION_TICKETS.md` y se reutilizan.
+Numeracion nueva a partir de EMS-011; **EMS-011 a EMS-019 completados**, incluido el trimestre descargado, versionado, perfilado, limpiado, transformado en panel zona-hora, entrenado con tres modelos comparables, preparado como paquete de reproduccion historica, integrado a FastAPI/frontend y evaluado con experimentos pareados. EMS-020 a EMS-022 siguen pendientes. Las dependencias EMS-005/006/007/008 ya figuran en `PRODUCTIONIZATION_TICKETS.md` y se reutilizan.
 
 | Ticket | Trabajo y entregable verificable | Depende de |
 |---|---|---|
 | EMS-011 (Hecho) | Protocolo y contrato NYC: ventana, cohortes, columnas, objetivos, configuracion y datos observados/asumidos documentados | EMS-002 |
 | EMS-012 (Hecho) | Descubrimiento API: maximo, cobertura diaria/mensual, esquema y evidencia guardada; ventana congelada verificada | EMS-011 |
 | EMS-013 (Hecho) | Piloto y trimestre completados: particiones mensuales, reintentos, reanudacion, conteos/hashes y procedencia archivada | EMS-012 |
-| EMS-014 | Limpieza y calidad: Parquet, cohortes demanda/respuesta, cuarentena y reporte de exclusiones con pruebas de casos limite | EMS-013 |
-| EMS-015 | Geografia y features: zonas NYC, panel horario completo, rezagos sin fuga y particiones congeladas | EMS-014 |
-| EMS-016 | Baselines y modelo: entrenamiento, MAE/RMSE por zona, predicciones fechadas y model card reproducible | EMS-015 |
-| EMS-017 | Calibracion del motor: adaptador historico, escenario NYC, componentes temporales y registro de supuestos | EMS-015, EMS-007 |
-| EMS-018 | Integracion historica API/UI: dataset seleccionable, corridas persistidas y contrato actualizado; datos reales llegan a la cola | EMS-016, EMS-017, EMS-005, EMS-006, EMS-008 |
-| EMS-018A (Iniciado) | Asistente LangGraph: base visual/documental activa; despues de EMS-018 conectar herramientas de modelos, corridas, metricas y reportes | EMS-011; conexion final despues de EMS-018 |
-| EMS-019 | Experimentos pareados: semillas/aleatoriedad controladas, replicas, sensibilidad, IC y resultados exportables | EMS-018, EMS-007 |
+| EMS-014 (Hecho) | Limpieza y calidad: Parquet, cohortes demanda/respuesta, cuarentena y reporte de exclusiones con pruebas de casos limite | EMS-013 |
+| EMS-015 (Hecho) | Geografia y features: zonas NYC, panel horario completo, rezagos sin fuga y particiones congeladas | EMS-014 |
+| EMS-016 (Hecho) | Baselines y modelo: entrenamiento, MAE/RMSE por zona, predicciones fechadas y model card reproducible | EMS-015 |
+| EMS-017 (Hecho) | Calibracion del motor: adaptador historico, escenario NYC, componentes temporales y registro de supuestos | EMS-015, EMS-007 |
+| EMS-018 (Hecho) | Integracion historica API/UI: dataset seleccionable, corridas persistidas y contrato actualizado; datos reales llegan a la cola | EMS-016, EMS-017, EMS-005, EMS-006, EMS-008 |
+| EMS-018A (Hecho) | Asistente LangGraph: consulta documentos, modelos, corridas, metricas y limites metodologicos sin inventar resultados finales | EMS-011, EMS-018 |
+| EMS-019 (Hecho) | Experimentos pareados: semillas/aleatoriedad controladas, replicas, IC bootstrap, pruebas pareadas y resultados exportables | EMS-018, EMS-007 |
+| EMS-019B (Hecho) | Visualizacion predictiva: graficos SVG y tablas CSV de desempeno por modelo, metrica, borough y serie temporal | EMS-016 |
+| EMS-019C (Hecho) | Panel visual predictivo en la app: endpoint de figuras/tablas y vista integrada en Prediccion de Demanda | EMS-019B, EMS-018 |
 | EMS-020 | Instrumentos y V de Aiken: dimensiones, items, expertos, valoraciones y revision documentada | EMS-011; iniciar en paralelo |
 | EMS-021 | Aplicacion y consistencia: piloto/participantes, alfa por dimension y KR-20 del test justificado, con incertidumbre | EMS-018, EMS-020 |
 | EMS-022 | Paquete del articulo: metodos, tablas, figuras, limitaciones y reproduccion por otro integrante | EMS-019, EMS-021 |

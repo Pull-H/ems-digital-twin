@@ -33,7 +33,7 @@ export interface Zone {
   poligono: [number, number][]; // Array of lat/lng coordinates
   poblacion: number;
   ingreso_promedio: number; // in USD or local currency
-  quintil_socioeconomico: SocioeconomicQuintile; // 1 = most vulnerable / poorest, 5 = wealthiest
+  quintil_socioeconomico: SocioeconomicQuintile | null; // null when not observed
   nivel_vulnerabilidad: number; // 0.0 - 1.0 (1.0 = highest vulnerability)
   demanda_historica_diaria: number; // average daily incidents
   area_km2: number;
@@ -87,7 +87,7 @@ export interface Incident {
   latitud: number;
   longitud: number;
   zona_id: number;
-  quintil_socioeconomico: SocioeconomicQuintile;
+  quintil_socioeconomico: SocioeconomicQuintile | null;
   prioridad: IncidentPriority;
   tipo: IncidentType;
   estado: IncidentStatus;
@@ -206,6 +206,11 @@ export interface SimEventLog {
 }
 
 export interface SimulationState {
+  data_mode?: 'demo' | 'historical';
+  dataset_id?: string;
+  model_id?: string;
+  start_minute?: number;
+  simulation?: HistoricalSimulationInfo;
   sim_minute: number;
   is_running: boolean;
   scenario: SimulationScenario;
@@ -228,12 +233,34 @@ export interface SimulationState {
 }
 
 export interface CreateSimulationRequest {
+  demand_source?: 'historical' | 'forecast';
   scenario: SimulationScenario;
   policy: DispatchPolicy;
   num_ambulances: number;
   seed: number;
   duration_min: number;
   weights: DispatchWeights;
+  data_mode?: 'demo' | 'historical';
+  dataset_id?: string;
+  model_id?: string;
+  start_minute?: number;
+}
+
+export interface HistoricalSimulationInfo {
+  engine: string;
+  demand_source: 'historical' | 'forecast';
+  status: 'ready' | 'finished';
+  clock: string;
+  timezone: string;
+  training_end: string;
+  visible_incidents: number;
+  excluded_unknown_zone: number;
+  completed: number;
+  unfinished: number;
+  observed_response_mean: number | null;
+  observed_response_count: number;
+  assumptions: string[];
+  zone_summary: { zone_id: number; arrived: number; pending: number; active: number; completed: number; available: number }[];
 }
 
 export interface CreateSimulationResponse {
@@ -311,4 +338,103 @@ export interface AssistantQueryResponse {
   evidence: AssistantEvidence[];
   graph_trace: string[];
   generated_at: string;
+}
+
+export interface HistoricalDatasetSummary {
+  id: string;
+  study_id: string;
+  mode: string;
+  status: string;
+  window: {
+    start_inclusive: string;
+    end_exclusive: string;
+  };
+  expected_rows: number;
+  historical_ready: boolean;
+}
+
+export interface HistoricalDatasetProfile {
+  id: string;
+  study_id: string;
+  status: string;
+  window: {
+    start_inclusive: string;
+    end_exclusive: string;
+  };
+  expected_rows: number;
+  historical_ready: boolean;
+  phase6: {
+    historical_arrivals?: number;
+    observed_response_rows?: number;
+    prediction_models_available?: string[];
+  };
+  calibration_global: {
+    demand_count?: number;
+    response_count?: number;
+    transport_count?: number;
+    valid_response_rate?: number;
+    response_min?: {
+      median?: number;
+      p90?: number;
+      p95?: number;
+    };
+    hourly_total_demand?: {
+      mean?: number;
+      p90?: number;
+    };
+  };
+  resource_assumptions: {
+    recommended_starting_point?: {
+      fleet_size_proxy?: number;
+      use?: string;
+    };
+  };
+  model_selection: {
+    best_model_id?: string;
+    criterion?: string;
+  };
+  available_models: string[];
+}
+
+export interface ModelPerformanceFigure {
+  id: string;
+  title: string;
+  description: string;
+  path: string;
+  svg: string;
+}
+
+export interface ModelPerformanceTable {
+  path: string;
+  rows: Record<string, string>[];
+}
+
+export interface ModelPerformanceReport {
+  dataset_id: string;
+  report_path: string | null;
+  figures: ModelPerformanceFigure[];
+  tables: Record<string, ModelPerformanceTable>;
+}
+
+export interface CrispDmFigure {
+  id: string;
+  title: string;
+  path: string;
+  svg: string;
+}
+
+export interface CrispDmTable {
+  title: string;
+  path: string;
+  rows: Record<string, string>[];
+}
+
+export interface CrispDmReport {
+  dataset_id: string;
+  methodology: string;
+  status: string;
+  key_findings: Record<string, string>;
+  report_path: string | null;
+  figures: CrispDmFigure[];
+  tables: Record<string, CrispDmTable>;
 }

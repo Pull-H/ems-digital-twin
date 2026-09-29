@@ -2,6 +2,8 @@ node_modules/
 build/
 dist/
 coverage/
+/test-results/
+/playwright-report/
 .DS_Store
 *.log
 .env*
@@ -9,8 +11,10 @@ coverage/
 .serena/
 
 # Local research data and generated artifacts
-/backend/data/nyc_ems/
+/data/nyc_ems/
+/data/runtime/
 /reports/nyc_ems/
 /research/artifacts/
 /research/private/
+/backend/**/__pycache__/
 /research/**/__pycache__/
