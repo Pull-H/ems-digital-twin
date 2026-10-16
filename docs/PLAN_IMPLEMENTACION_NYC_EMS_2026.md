@@ -1,5 +1,7 @@
 # Plan por fases: datos historicos NYC EMS, simulacion y articulo
 
+Plan de cierre actualizado (2026-09-28): [ampliacion experimental 8C-8G, instrumentos 9A-9B, reproducibilidad y articulo](PLAN_CIERRE_IMPLEMENTACION_NYC_EMS.md). Fase 8C implementada y auditada; las restantes siguen pendientes. [Resultados y bloqueos metodologicos de 8C](NYC_EMS_PHASE8C_AUDIT.md).
+
 Fecha de consulta: 2026-09-08. Estado actualizado: fases 0, 1, 2, 3, 4, 5, 6, 7, 7B y 8 completadas como base funcional de investigacion (EMS-011 a EMS-019), mas mini fases EMS-019B/EMS-019C de visualizacion predictiva; fase 9 pendiente. [Resultado del piloto](NYC_EMS_PILOT_REPORT.md), [extraccion trimestral y evidencia local](NYC_EMS_FULL_EXTRACTION_REPORT.md), [perfilado/limpieza/cohortes](NYC_EMS_PHASE3_QUALITY_REPORT.md), [geografia/features/particiones](NYC_EMS_PHASE4_FEATURES_REPORT.md), [comparacion de modelos](NYC_EMS_PHASE5_MODEL_REPORT.md), [visualizacion de modelos](NYC_EMS_MODEL_PERFORMANCE_VISUALS.md), [panel visual de modelos](NYC_EMS_MODEL_PERFORMANCE_PANEL.md), [calibracion/reproduccion historica](NYC_EMS_PHASE6_SIMULATION_CALIBRATION_REPORT.md), [integracion API/frontend](NYC_EMS_PHASE7_API_FRONTEND_REPORT.md) y [experimentos pareados](NYC_EMS_PHASE8_EXPERIMENTS.md).
 
 ## 1. Objetivo y alcance

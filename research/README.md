@@ -136,6 +136,37 @@ Este comando requiere las salidas de fases 4 y 5 y genera:
 - `simulation/resource_assumptions.json`
 - `simulation/phase6_manifest.json`
 
+## Auditoria de fase 8C
+
+Desde la raiz, usando las dependencias de backend y research:
+
+```powershell
+python -m research.experiments.audit_phase8c
+```
+
+Usa el snapshot local; no descarga datos ni inicia servidores. Conserva por ejecucion
+el protocolo, hashes, resumen, trazas de decisiones e incidentes en
+`reports/nyc_ems/<snapshot>/phase8c/<UTC>/`. No reemplaza los resultados de fase 8.
+La configuracion es `research/config/nyc_ems_phase8c_protocol_v1.json`.
+Ver [diagnostico y limites](../docs/NYC_EMS_PHASE8C_AUDIT.md).
+
+## Sensibilidad de fase 8D
+
+Desde la raiz, sin iniciar la aplicacion:
+
+```powershell
+python -m research.experiments.fleet_sensitivity --workers 2
+```
+
+Ejecuta 22 escenarios con diez replicas pareadas (440 corridas), guarda resultados
+por par y puede reanudarse con el mismo comando. `--resume <carpeta-del-lote>` exige
+que codigo, configuracion, entorno y datos sigan coincidiendo con el manifiesto.
+`--limit-pairs 2` permite verificar una ejecucion parcial antes de continuar.
+
+Resultados en `reports/nyc_ems/<snapshot>/phase8d/<hash>/SENSITIVITY_REPORT.md`,
+con tablas CSV, incidentes Parquet y seis figuras PNG/SVG. Ver
+[alcance, denominadores y limites](../docs/NYC_EMS_PHASE8D_SENSITIVITY.md).
+
 ## Archivos del piloto
 
 Cada snapshot contiene `config.json`, `discovery.json`, `manifest.json` y paginas `raw/2026-04/page-*.json.gz`. Al terminar o pausar correctamente tambien guarda `discovery_after.json`. Las paginas son arrays JSON comprimidos, con los valores originales de las 26 columnas solicitadas; no se rellenan faltantes ni se filtra por validez.

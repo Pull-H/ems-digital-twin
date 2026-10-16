@@ -29,6 +29,14 @@ class EMSSimulator:
         self.end = self.start + int(payload.get("duration_min", 720))
         self.seed = int(payload.get("seed", 12345))
         self.policy = payload.get("policy", "tradicional")
+        self.audit_decisions = bool(payload.get("audit_decisions", False))
+        self.decision_audit: list[dict] = []
+        self.cross_zone_travel_multiplier = float(payload.get("cross_zone_travel_multiplier", 1))
+        self.release_multiplier = float(payload.get("release_multiplier", 1))
+        if not all(np.isfinite(v) and v > 0 for v in
+                   (self.cross_zone_travel_multiplier, self.release_multiplier)):
+            raise ValueError("Los multiplicadores de sensibilidad deben ser positivos y finitos.")
+        self.drain_until: float | None = None
         self.profile = data.dataset_profile(self.dataset)
         self.epoch = pd.Timestamp(self.profile["window"]["start_inclusive"])
         partitions = data._read_json(data._snapshot_dir(self.dataset) / "processed/temporal_partitions.json")
@@ -63,12 +71,24 @@ class EMSSimulator:
         forecasts = data._forecasts(self.dataset)
         self.forecasts = forecasts[forecasts.model_id == self.model].copy()
         self.baselines = forecasts[forecasts.model_id == 'baseline_temporal_v1']
+        for frame in (self.forecasts, self.baselines):
+            if frame.duplicated(["target_start", "zone_id"]).any():
+                raise ValueError("Pronosticos duplicados para modelo, hora y zona.")
+            if "training_window_end" not in frame:
+                raise ValueError("Falta procedencia temporal del entrenamiento de pronosticos.")
+            trained_until = pd.to_datetime(frame["training_window_end"], errors="coerce")
+            if (trained_until.isna() | frame.issued_at.isna() | frame.target_start.isna()
+                    | frame.target_end.isna() | (trained_until > frame.issued_at)
+                    | (frame.target_end != frame.target_start + pd.Timedelta(hours=1))).any():
+                raise ValueError("Procedencia u horizonte temporal de pronosticos invalido.")
+            if not np.isfinite(frame.prediction.to_numpy(dtype=float)).all() or (frame.prediction < 0).any():
+                raise ValueError("Los pronosticos deben ser conteos finitos no negativos.")
         if self.forecasts.empty:
             raise ValueError("Modelo sin pronosticos disponibles.")
         self.prediction_cache: dict[int, list] = {}
         if self.source == "forecast" or self.policy == "predictivo":
             for minute in range(self.start // 60 * 60, self.end, 60):
-                if len(self.predictions(minute)) != len(self.zones):
+                if {p["zona_id"] for p in self.predictions(minute)} != set(self.by_zone):
                     raise ValueError("Faltan pronosticos emitidos para una o mas horas del escenario.")
         if self.source == "historical":
             rows = self.replay[(self.replay.sim_time_min >= self.start) & (self.replay.sim_time_min < self.end)]
@@ -104,7 +124,9 @@ class EMSSimulator:
                 zone = lookup.get(str(row["zone_id"]))
                 if zone:
                     value = max(0, float(row["prediction"]))
-                    baseline = self.baselines[(self.baselines.target_start == timestamp) & (self.baselines.zone_id == row['zone_id'])]
+                    baseline = self.baselines[(self.baselines.target_start == timestamp)
+                                              & (self.baselines.issued_at <= timestamp)
+                                              & (self.baselines.zone_id == row['zone_id'])]
                     result.append({"zona_id": zone["id"], "zona_nombre": zone["nombre"], "horizonte_min": 60,
                                    "demanda_predicha_ml": round(value, 2), "demanda_predicha_base": float(baseline.iloc[0]['prediction']) if not baseline.empty else value,
                                    "nivel_riesgo": data._risk(value), "probabilidad_incidente": -expm1(-value),
@@ -140,6 +162,8 @@ class EMSSimulator:
         for row in self.arrivals:
             yield self.env.timeout(max(0, float(row["sim_time_min"]) - self.env.now))
             incident = data._incident_to_frontend(row)
+            # Keep simulation arithmetic at source precision; round only for presentation.
+            incident["tiempo_llamada"] = float(row["sim_time_min"])
             incident.update(estado="pendiente", tiempo_despacho=None, tiempo_llegada_escena=None,
                             tiempo_respuesta_min=None, tiempo_llegada_hospital=None, tiempo_liberacion=None,
                             source=self.source, observed_response_min=data._safe_float(row.get("observed_response_min")) if row.get('response_cohort') else None)
@@ -154,7 +178,7 @@ class EMSSimulator:
             transport = duration("observed_transport_to_hospital_min", 12)
             # Closure is only a proxy for resource release. Never use the current case's outcome.
             release = max(10, duration("observed_call_to_close_min", 80) - travel - scene - transport)
-            incident["service"] = (travel, scene, transport, release)
+            incident["service"] = (travel, scene, transport, release * self.release_multiplier)
             incident["requiere_traslado"] = bool(sample.get("requiere_traslado", False))
             incident["duracion_atencion_escena_min"] = scene
             self.incidents.append(incident)
@@ -173,13 +197,23 @@ class EMSSimulator:
             if not available:
                 break
             incident = self.waiting.pop(0)
-            demand = {p["zona_id"]: p["demanda_predicha_ml"] for p in self.predictions(self.env.now)}
-            counts = {z: sum(a["zona_actual_id"] == z for a in available) for z in self.by_zone}
+            forecast_minute = min(self.env.now, self.end - .001)
+            demand = {p["zona_id"]: p["demanda_predicha_ml"] for p in self.predictions(forecast_minute)}
+            counts = {z: 0 for z in self.by_zone}
+            representatives = {}
+            for unit in available:
+                zone_id = unit["zona_actual_id"]
+                counts[zone_id] += 1
+                if zone_id not in representatives or unit["id"] < representatives[zone_id]["id"]:
+                    representatives[zone_id] = unit
             def score(a):
                 travel = self.travel(a, incident)
                 reserve = demand.get(a["zona_actual_id"], 0) / max(1, counts[a["zona_actual_id"]])
                 return (travel + (2 * reserve if self.policy == "predictivo" else 0), a["id"])
-            ambulance = min(available, key=score)
+            # v1 scores depend on zone, not unit position; preserve the lowest-ID tie break.
+            ambulance = min(representatives.values(), key=score)
+            if self.audit_decisions:
+                self.record_decision(incident, available, ambulance, demand, counts)
             ambulance.update(estado="asignada", incidente_asignado_id=incident["id"])
             self.busy_since[ambulance["id"]] = float(self.env.now)
             incident.update(estado="despachado", ambulancia_id=ambulance["id"], tiempo_despacho=float(self.env.now),
@@ -187,10 +221,38 @@ class EMSSimulator:
             self.log("ambulancia_despachada", incident, ambulance)
             self.env.process(self.serve(ambulance, incident))
 
+    def record_decision(self, incident, available, selected, demand, counts):
+        # All units in a zone share travel/reserve scores; the lowest ID wins ties.
+        candidates = []
+        for zone_id in sorted(counts):
+            units = [a for a in available if a["zona_actual_id"] == zone_id]
+            if not units:
+                continue
+            unit = min(units, key=lambda a: a["id"])
+            travel = self.travel(unit, incident)
+            penalty = 2 * demand.get(zone_id, 0) / counts[zone_id]
+            candidates.append({"zone_id": zone_id, "ambulance_id": unit["id"],
+                               "available_count": counts[zone_id], "travel_min": travel,
+                               "forecast_calls_per_hour": demand.get(zone_id, 0),
+                               "reserve_penalty_score": penalty,
+                               "traditional_score": travel, "predictive_score": travel + penalty})
+        traditional = min(candidates, key=lambda c: (c["traditional_score"], c["ambulance_id"]))
+        predictive = min(candidates, key=lambda c: (c["predictive_score"], c["ambulance_id"]))
+        self.decision_audit.append({
+            "incident_id": incident["id"], "minute": float(self.env.now),
+            "incident_zone_id": incident["zona_id"], "policy": self.policy,
+            "selected_ambulance_id": selected["id"], "selected_zone_id": selected["zona_actual_id"],
+            "traditional_choice_id": traditional["ambulance_id"],
+            "predictive_choice_id": predictive["ambulance_id"],
+            "same_state_choice_changed": traditional["ambulance_id"] != predictive["ambulance_id"],
+            "wait_since_call_min": float(self.env.now - incident["tiempo_llamada"]),
+            "candidates_by_zone": candidates,
+        })
+
     def travel(self, ambulance, incident):
         origin = self.by_zone[ambulance["zona_actual_id"]]["centroide"]
         target = self.by_zone[incident["zona_id"]]["centroide"]
-        return incident["service"][0] + distance(origin, target) / 38 * 60
+        return incident["service"][0] + distance(origin, target) / 38 * 60 * self.cross_zone_travel_multiplier
 
     def move(self, ambulance, destination, duration, status):
         origin = (ambulance["latitud"], ambulance["longitud"])
@@ -234,6 +296,22 @@ class EMSSimulator:
             self.env.step()
         if self.env.now < target:
             self.env.run(until=target)
+        return self.snapshot()
+
+    def drain(self, max_minutes):
+        """Complete queued/in-flight work without new arrivals or post-cut forecasts."""
+        if not np.isfinite(max_minutes) or max_minutes < 0:
+            raise ValueError("El limite de vaciado debe ser finito y no negativo.")
+        if self.env.now < self.end:
+            raise ValueError("El vaciado requiere alcanzar primero el corte de llegadas.")
+        limit = self.end + max_minutes
+        if limit < self.env.now:
+            raise ValueError("El limite de vaciado no puede retroceder el reloj.")
+        self.drain_until = limit
+        while self.env.peek() <= limit:
+            self.env.step()
+        if self.env.peek() != float("inf") and self.env.now < limit:
+            self.env.run(until=limit)
         return self.snapshot()
 
     def snapshot(self):

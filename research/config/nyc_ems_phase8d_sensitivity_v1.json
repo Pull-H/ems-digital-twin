@@ -1,0 +1,36 @@
+{
+  "study_id": "nyc-ems-phase8d-sensitivity-v1",
+  "parent_protocol": "nyc_ems_phase8c_protocol_v1.json",
+  "scope": "Exploratory development sensitivity of existing v1 policies. No significance tests or policy selection.",
+  "dataset_id": "20260909T040537085584Z-56d48fe7ce9b",
+  "model_id": "hist_gradient_boosting_v1",
+  "timezone": "America/New_York",
+  "development_days": ["2026-05-18", "2026-05-20", "2026-05-23"],
+  "fleet_sizes": [691, 531, 400, 300],
+  "policies": ["tradicional", "predictivo"],
+  "repetitions": 10,
+  "first_seed": 12345,
+  "measured_duration_min": 1440,
+  "warmup_min": 360,
+  "drain_cap_min": 1440,
+  "assumption_day": "2026-05-20",
+  "assumption_fleet": 300,
+  "assumption_variants": [
+    {"id": "travel_080", "cross_zone_travel_multiplier": 0.8},
+    {"id": "travel_120", "cross_zone_travel_multiplier": 1.2},
+    {"id": "release_080", "release_multiplier": 0.8},
+    {"id": "release_120", "release_multiplier": 1.2},
+    {"id": "warmup_000", "warmup_min": 0},
+    {"id": "warmup_720", "warmup_min": 720}
+  ],
+  "forecast_days": ["2026-05-20"],
+  "range_justification": "Flotas conservadas del protocolo 8C, no inventario FDNY. Variaciones de +/-20% son perturbaciones exploratorias, no intervalos empiricos: viaje solo en el suplemento entre centroides; liberacion solo en el residual posterior al hospital. Se modifica un factor por vez. Se fija miercoles y flota minima de la rejilla antes de ejecutar, por cobertura de un dia laboral y presion de recursos, sin seleccionar resultados.",
+  "aggregation": "Equal weight per seed within day; equal weight per day for historical fleet summary. Keep historical and forecast groups separate. Report cut and drained populations separately; unresolved responses are missing, not zero.",
+  "budget": "22 scenarios x 10 paired replicates = 220 pairs / 440 runs. No stopping based on observed effect. Final 30-replicate evaluation remains phase8F.",
+  "limitations": [
+    "May validation is used for development; not independent confirmatory evaluation.",
+    "June is not consumed in this phase; prior June exposure remains recorded in 8C.",
+    "Forecast arrivals are generated from retrospective forecasts and are not new observed incidents.",
+    "No GPS, hospital capacity or real fleet inventory. No clinical/operational claims."
+  ]
+}
