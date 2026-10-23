@@ -1,6 +1,7 @@
 node_modules/
 build/
 dist/
+/release_assets/
 coverage/
 /test-results/
 /playwright-report/

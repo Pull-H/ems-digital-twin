@@ -8,10 +8,10 @@ en la release `v2026.10-repro`. Cite el commit de esa release y el SHA-256 del
 archivo ZIP, no solo la rama `main`, que puede cambiar. No hay DOI de Zenodo.
 
 Archivo: `nyc_ems_20260909T040537085584Z-56d48fe7ce9b_evidence.zip`
-(626 archivos, 252 859 053 bytes). SHA-256:
+(626 archivos, 252 859 050 bytes). SHA-256:
 
 ```text
-6485269efdb4fb464ef06fc282c97439375d943c4af6e4734024c93b3400d7cc
+653e737d7dd5bbaaccf0da66a14a3b02e10f85972b75f8e858c2ca737ebf0474
 ```
 
 El paquete incluye el snapshot NYC EMS de abril-junio de 2026, cohortes y
@@ -25,7 +25,7 @@ repositorio cubre el codigo, no sustituye los terminos de la fuente publica.
 
 1. Clonar el repositorio y cambiar a la etiqueta de la release.
 2. Descargar el ZIP desde la [release](https://github.com/Pull-H/ems-digital-twin/releases/tag/v2026.10-repro)
-   a `dist/repro/`.
+   a `release_assets/`.
 3. Comparar el SHA-256 del ZIP con el publicado en las notas de la release.
 4. Verificar cada archivo del ZIP y luego instalarlo en el clon limpio:
 
@@ -33,9 +33,9 @@ repositorio cubre el codigo, no sustituye los terminos de la fuente publica.
 git clone https://github.com/Pull-H/ems-digital-twin.git
 cd ems-digital-twin
 git checkout v2026.10-repro
-New-Item -ItemType Directory -Force dist/repro | Out-Null
-Invoke-WebRequest -Uri "https://github.com/Pull-H/ems-digital-twin/releases/download/v2026.10-repro/nyc_ems_20260909T040537085584Z-56d48fe7ce9b_evidence.zip" -OutFile "dist/repro/nyc_ems_20260909T040537085584Z-56d48fe7ce9b_evidence.zip"
-(Get-FileHash dist/repro/nyc_ems_20260909T040537085584Z-56d48fe7ce9b_evidence.zip -Algorithm SHA256).Hash
+New-Item -ItemType Directory -Force release_assets | Out-Null
+Invoke-WebRequest -Uri "https://github.com/Pull-H/ems-digital-twin/releases/download/v2026.10-repro/nyc_ems_20260909T040537085584Z-56d48fe7ce9b_evidence.zip" -OutFile "release_assets/nyc_ems_20260909T040537085584Z-56d48fe7ce9b_evidence.zip"
+(Get-FileHash release_assets/nyc_ems_20260909T040537085584Z-56d48fe7ce9b_evidence.zip -Algorithm SHA256).Hash
 python tools/repro_bundle.py verify
 python tools/repro_bundle.py install
 python -m research.pipeline.nyc_ems verify --snapshot 20260909T040537085584Z-56d48fe7ce9b

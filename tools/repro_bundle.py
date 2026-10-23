@@ -110,7 +110,7 @@ def install(archive: Path, destination: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("build", "verify", "install"))
-    parser.add_argument("--archive", type=Path, default=ROOT / "dist" / "repro" / ARCHIVE_NAME)
+    parser.add_argument("--archive", type=Path, default=ROOT / "release_assets" / ARCHIVE_NAME)
     parser.add_argument("--destination", type=Path, default=ROOT)
     args = parser.parse_args()
     try:
