@@ -17,6 +17,24 @@ import { ComparisonBenchmarkResult } from './comparisonService';
 const apiBaseUrl =
   ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
+export interface ArticleFigure {
+  id: string;
+  title: string;
+  description: string;
+  width_px: number;
+  height_px: number;
+  dpi: number;
+  print_width_cm: number;
+  print_height_cm: number;
+  files: Record<'png' | 'tiff', { bytes: number; sha256: string }>;
+}
+
+export const articleFiguresApi = {
+  list: () => requestJson<{ snapshot: string; figures: ArticleFigure[] }>('/api/article-figures'),
+  url: (id: string, format: 'preview' | 'png' | 'tiff') => `${apiBaseUrl}/api/article-figures/${encodeURIComponent(id)}/${format}`,
+  archive: `${apiBaseUrl}/api/article-figures/archive`,
+};
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,

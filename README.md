@@ -3,6 +3,15 @@
 Gemelo digital para simular una red urbana de servicios medicos de emergencia,
 comparar politicas de despacho y analizar indicadores de equidad.
 
+## Reproducir el estudio
+
+El codigo, el snapshot congelado de NYC EMS, los modelos y las tablas de los
+experimentos se distribuyen con instrucciones y sumas SHA-256 en
+[docs/REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md). La API original puede
+cambiar; use el paquete de evidencia de la release para contrastar exactamente
+los resultados publicados. El codigo esta bajo MIT; los datos proceden de
+NYC Open Data y se atribuyen a su fuente original.
+
 ## Arquitectura actual
 
 - `src/`: frontend React/Vite.

@@ -18,3 +18,4 @@ coverage/
 /research/private/
 /backend/**/__pycache__/
 /research/**/__pycache__/
+/tools/**/__pycache__/

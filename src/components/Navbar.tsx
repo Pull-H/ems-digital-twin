@@ -15,6 +15,7 @@ import {
   Sliders,
   Sparkles,
   Workflow,
+  Images,
 } from 'lucide-react';
 import { DispatchPolicy, SimulationScenario } from '../types';
 
@@ -61,6 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'comparison', label: historicalClock ? 'Experimentos' : 'Comparación & Equidad', icon: GitCompare },
     { id: 'stats', label: 'Pruebas Estadísticas', icon: BarChart3 },
     { id: 'crispdm', label: 'CRISP-DM', icon: Workflow },
+    { id: 'article-figures', label: 'Figuras del articulo', icon: Images },
     { id: 'data', label: 'Datos & CSV', icon: Database },
     { id: 'assistant', label: 'Asistente EMS', icon: MessageCircle },
     { id: 'code', label: 'Arquitectura & Python', icon: FileCode },

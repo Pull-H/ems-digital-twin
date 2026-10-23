@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+dist
+data
+reports
+research/artifacts
+research/private
+docs/article_assets
+docs/*.docx
+docs/*.md
+tools/__pycache__
+backend/**/__pycache__
+research/**/__pycache__

@@ -111,14 +111,17 @@ def add_para(document: Document, text: str) -> None:
     p.paragraph_format.space_after = Pt(6)
 
 
-def generate_figures() -> dict[str, Path]:
+def generate_figures(output_dir: Path | None = None, dpi: int = 160) -> dict[str, Path]:
+    # A local destination preserves the article's originals when exporting publication copies.
+    ASSETS = output_dir if output_dir is not None else ROOT / "docs" / "article_assets"
     ASSETS.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({
         "font.family": "DejaVu Sans",
         "font.size": 9,
         "axes.titlesize": 11,
         "axes.labelsize": 9,
-        "figure.dpi": 160,
+        "figure.dpi": dpi,
+        "savefig.dpi": dpi,
     })
     figures: dict[str, Path] = {}
 

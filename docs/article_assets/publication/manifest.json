@@ -1,0 +1,105 @@
+{
+  "snapshot": "20260909T040537085584Z-56d48fe7ce9b",
+  "figures": [
+    {
+      "id": "fig1_architecture",
+      "title": "Arquitectura del sistema",
+      "description": "Flujo de datos, entrenamiento, simulacion y visualizacion.",
+      "width_px": 4743,
+      "height_px": 2238,
+      "dpi": 600,
+      "print_width_cm": 20.08,
+      "print_height_cm": 9.47,
+      "files": {
+        "png": {
+          "bytes": 275005,
+          "sha256": "b9740d0eb3cfbd2b79783b8d646dddb402baaa798b748f193ed02f235c1ebbe2"
+        },
+        "tiff": {
+          "bytes": 536434,
+          "sha256": "7222ea0b85ff2c28552172864a34e947a71884997f0179ac719f3f09a86e38ea"
+        }
+      }
+    },
+    {
+      "id": "fig2_global_metrics",
+      "title": "Metricas globales de prueba",
+      "description": "Prueba de junio de 2026. MAE y RMSE en incidentes por hora; WAPE en porcentaje. Comparar modelos dentro de cada metrica.",
+      "width_px": 4338,
+      "height_px": 2464,
+      "dpi": 600,
+      "print_width_cm": 18.36,
+      "print_height_cm": 10.43,
+      "files": {
+        "png": {
+          "bytes": 152501,
+          "sha256": "d947ed8c4839308264b79d41fa9e7546adde42f3b75a660767141e43f8bd6afc"
+        },
+        "tiff": {
+          "bytes": 566018,
+          "sha256": "6aac2d45ddcee6a569e4fe9b7b9aea0853a9900eed415cb0b29925dc7fc1426c"
+        }
+      }
+    },
+    {
+      "id": "fig3_borough_mae",
+      "title": "MAE por borough",
+      "description": "Error absoluto medio por borough y modelo; valores menores indican menor error.",
+      "width_px": 2939,
+      "height_px": 2478,
+      "dpi": 600,
+      "print_width_cm": 12.44,
+      "print_height_cm": 10.49,
+      "files": {
+        "png": {
+          "bytes": 253181,
+          "sha256": "004fec4308089da68b70340489ae5d95868ae4006096f22c1d1d07a6bf5f4542"
+        },
+        "tiff": {
+          "bytes": 625296,
+          "sha256": "32222ded2bca5156c9677d8a5708e2c154ec086ab5e3e1f1181ba38a9801935d"
+        }
+      }
+    },
+    {
+      "id": "fig4_actual_vs_predicted",
+      "title": "Demanda real y predicha",
+      "description": "Modelo seleccionado en validacion. Series agregadas con media movil de 24 horas: el suavizado puede ocultar picos.",
+      "width_px": 4518,
+      "height_px": 2358,
+      "dpi": 600,
+      "print_width_cm": 19.13,
+      "print_height_cm": 9.98,
+      "files": {
+        "png": {
+          "bytes": 517732,
+          "sha256": "34c62bba2d749bb776def46ef1571cb1686105848b245ad9b73b046b6a26dda3"
+        },
+        "tiff": {
+          "bytes": 710712,
+          "sha256": "da007f747c98725b32df9ed1563619aac859fd5789e502b0ce8a5765659cc86e"
+        }
+      }
+    },
+    {
+      "id": "fig5_policy_experiment",
+      "title": "Comparacion de politicas",
+      "description": "Experimento archivado de fase 8, politica v1. Evidencia descriptiva simulada; no representa la sensibilidad posterior de fase 8D ni impacto operacional.",
+      "width_px": 4398,
+      "height_px": 2418,
+      "dpi": 600,
+      "print_width_cm": 18.62,
+      "print_height_cm": 10.24,
+      "files": {
+        "png": {
+          "bytes": 204604,
+          "sha256": "8de27c85139752a377084610c244d7701e2339158b63346e1a01ca5400c1ed13"
+        },
+        "tiff": {
+          "bytes": 678442,
+          "sha256": "0fd14838a0703f5247346f6befd731f842af7575d82b23450d6a34cfcbc798a7"
+        }
+      }
+    }
+  ]
+}

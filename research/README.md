@@ -1,6 +1,6 @@
 # Investigacion NYC EMS
 
-La fase 0 (EMS-011) define configuracion, contrato y protocolo. La fase 1 agrega descubrimiento API, descarga local reanudable del piloto y verificacion sin conexion. La fase 2 agrega extraccion trimestral por meses y copias versionadas de los insumos. Limpieza y entrenamiento siguen pendientes.
+La fase 0 (EMS-011) define configuracion, contrato y protocolo. Las fases 1 y 2 agregan extraccion reanudable y versionada; las fases 3 a 6 preparan cohortes, features, modelos y entradas de simulacion. Las fases 8C y 8D auditan decisiones y sensibilidad. Para reproducir el articulo desde el snapshot congelado, consulte [la guia de reproducibilidad](../docs/REPRODUCIBILITY.md).
 
 - [Configuracion del trimestre](config/nyc_ems_2026.json): ventana principal y piloto, columnas, cohortes, semillas, cortes temporales y rutas locales.
 - [Diccionario normalizado](config/nyc_ems_fields_v1.csv) y [mapeos versionados](config/nyc_ems_mappings_v1.json).

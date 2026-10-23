@@ -12,6 +12,7 @@ import { AssistantPanel } from './components/AssistantPanel';
 import { HistoricalWorkspace } from './components/historical/HistoricalWorkspace';
 import { ModelPerformancePanel } from './components/historical/ModelPerformancePanel';
 import { CrispDmPanel } from './components/historical/CrispDmPanel';
+import { ArticleFiguresPanel } from './components/ArticleFiguresPanel';
 
 import {
   Ambulance,
@@ -560,6 +561,7 @@ export const App: React.FC = () => {
         )}
 
         {activeTab === 'assistant' && <AssistantPanel />}
+        {activeTab === 'article-figures' && <ArticleFiguresPanel />}
 
         {activeTab === 'code' && <PythonArchitectureViewer />}
       </main>

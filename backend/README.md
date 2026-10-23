@@ -18,5 +18,7 @@ http://localhost:8000/docs
 El frontend React se ejecuta aparte con `npm run dev` y Vite redirige `/api`
 hacia este backend.
 
-El procesamiento de datos y ML vive en `research/`; esos scripts generan
-artefactos en `data/` que este backend consumira en las fases siguientes.
+El procesamiento de datos y ML vive en `research/`; sus artefactos versionados
+en `data/` alimentan los endpoints historicos y el simulador. Para instalar
+el snapshot congelado y reproducir los resultados, consulte
+[REPRODUCIBILITY.md](../docs/REPRODUCIBILITY.md).
