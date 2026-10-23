@@ -1,0 +1,53 @@
+{
+  "protocol_id": "nyc-ems-july-2026-temporal-holdout-v1",
+  "frozen_on": "2026-10-23",
+  "status": "prospectively_fixed_for_july_analysis_not_registered_trial",
+  "source_dataset_id": "76xm-jjuj",
+  "development_snapshot_id": "20260909T040537085584Z-56d48fe7ce9b",
+  "extraction_window": {
+    "start_inclusive": "2026-07-01T00:00:00",
+    "end_exclusive": "2026-08-01T00:00:00"
+  },
+  "feature_warmup": "July 1-7 supplies the 168-hour lag; no July labels train the frozen models.",
+  "evaluation_window": {
+    "start_inclusive": "2026-07-09T00:00:00",
+    "end_exclusive": "2026-07-30T00:00:00",
+    "days": 21,
+    "warmup_minutes_per_day": 360,
+    "measurement_minutes_per_day": 1440,
+    "drain_cap_minutes": 1440
+  },
+  "forecast_models": ["baseline_temporal_v1", "hist_gradient_boosting_v1", "random_forest_v1"],
+  "policy_comparison": {
+    "policies": ["tradicional", "predictivo"],
+    "selected_model_id": "hist_gradient_boosting_v1",
+    "primary_fleet_assumption": 400,
+    "fleet_selection_basis": "Exploratory May 2026 sensitivity; July was not inspected for this choice.",
+    "first_seed": 12345,
+    "paired_replicates_per_day": 10,
+    "primary_outcome": "traditional minus predictive mean response minutes after capped drain",
+    "primary_unit": "calendar day, averaged across paired seeds",
+    "positive_effect_direction": "favors predictive v1 in simulation",
+    "censoring_gate": "Always report unanswered after drain and response completeness; if either policy has unresolved arrivals, the response mean is conditional and cannot alone establish superiority.",
+    "secondary_outcomes": ["unanswered_at_cut", "unanswered_after_drain", "response_le_8min_pct_all_arrivals_lower_bound", "measurement_utilization"],
+    "stopping_rule": "All 21 days and 10 paired seeds are required; no result-dependent stopping."
+  },
+  "uncertainty": {
+    "confidence_level": 0.95,
+    "primary_interval": "circular moving-block bootstrap of 21 daily paired means; block length 7 days, 10000 draws, seed 20261023",
+    "sensitivity_interval": "same bootstrap with block length 3 days",
+    "secondary_test": "HAC mean test with lag 3, asymptotic p value and 95% CI; interpretation conditional on stationarity/weak dependence",
+    "multiplicity": "Holm across four prespecified secondary outcomes; no incident-level IID inference"
+  },
+  "observed_validation": {
+    "comparison": "Traditional simulated daily mean and P90 versus NYC EMS valid-response cohort, descriptive only",
+    "not_a_field_validation": true
+  },
+  "limitations": [
+    "Model and simulator calibrated on April-June 2026; July is a new temporal window, not a new city or real dispatch trial.",
+    "July results cannot identify the effect of preventive relocation; neither policy relocates idle units.",
+    "The assumed fleet of 400 is not an observed FDNY inventory.",
+    "Twenty-one consecutive days give limited information about long-run seasonality and rare events.",
+    "Public source records can be corrected after extraction; archive and hash the snapshot used."
+  ]
+}
