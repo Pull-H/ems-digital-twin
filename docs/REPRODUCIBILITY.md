@@ -1,5 +1,10 @@
 # Reproducibilidad del estudio NYC EMS
 
+La evaluacion temporal adicional de julio de 2026 y su archivo de evidencia
+se documentan en [JULY_HOLDOUT_REPRODUCIBILITY.md](JULY_HOLDOUT_REPRODUCIBILITY.md).
+La release descrita a continuacion corresponde al periodo de desarrollo
+abril-junio y no contiene los resultados de julio.
+
 ## Version citable y alcance
 
 El codigo fuente publico esta en https://github.com/Pull-H/ems-digital-twin.
